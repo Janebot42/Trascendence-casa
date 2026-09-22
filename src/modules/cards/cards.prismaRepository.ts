@@ -14,7 +14,8 @@ export class PrismaCardsRepository implements CardsRepository {
         from (select pg_advisory_xact_lock(hashtext(${`card-position:${input.listId}`}))) acquired
       `;
       const last = await tx.card.findFirst({
-        where: { listId: input.listId, archivedAt: null },
+        // La restricción única también incluye tarjetas archivadas.
+        where: { listId: input.listId },
         orderBy: { position: 'desc' },
         select: { position: true }
       });
