@@ -1,7 +1,9 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth';
+import Sidebar from '@/components/layout/Sidebar';
 import { beginTwoFactorSetup, confirmTwoFactor, disableTwoFactor, regenerateRecoveryCodes, reauthenticate } from '@/lib/security';
 
 export default function SecurityPage() {
@@ -13,6 +15,7 @@ export default function SecurityPage() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const run = async (operation: () => Promise<void>, success: string) => {
     setError(null);
@@ -50,13 +53,26 @@ export default function SecurityPage() {
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen flex-1 overflow-y-auto bg-surface-bright p-6 text-on-surface md:p-10">
-        <div className="mx-auto max-w-3xl space-y-6">
-          <div>
+      <div className="flex min-h-screen w-full">
+        <Sidebar isOpenMobile={isMobileSidebarOpen} onCloseMobile={() => setIsMobileSidebarOpen(false)} />
+        <main className="min-h-screen flex-1 overflow-y-auto bg-surface-bright p-6 text-on-surface md:p-10">
+          <div className="mx-auto max-w-3xl space-y-6">
+            <div className="flex items-center justify-between gap-4">
+              <button type="button" onClick={() => setIsMobileSidebarOpen(true)} className="rounded-xl border border-outline-variant bg-white px-3 py-2 text-sm font-semibold text-on-surface md:hidden">
+                <span className="material-symbols-outlined align-middle text-[18px]">menu</span>
+                <span className="ml-2 align-middle">Menú</span>
+              </button>
+              <Link href="/" className="ml-auto inline-flex items-center gap-2 rounded-xl border border-outline-variant bg-white px-4 py-2 text-sm font-semibold text-on-surface transition-colors hover:border-primary hover:text-primary">
+                <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                Volver a boards
+              </Link>
+            </div>
+
+            <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">Seguridad</p>
             <h1 className="mt-2 text-3xl font-bold">Autenticación en dos pasos</h1>
             <p className="mt-2 text-on-surface-variant">Reautentica la sesión antes de configurar o modificar 2FA.</p>
-          </div>
+            </div>
 
           {(message || error) && <div className={`rounded-lg border p-3 text-sm ${error ? 'border-error/20 bg-error/10 text-error' : 'border-primary/20 bg-primary/10 text-primary'}`}>{error ?? message}</div>}
 
@@ -81,8 +97,9 @@ export default function SecurityPage() {
             <button type="button" onClick={() => run(disableTwoFactor, '2FA desactivado.')} className="rounded-xl border border-error px-4 py-3 font-semibold text-error">Desactivar 2FA</button>
             {recoveryCodes.length > 0 && <pre className="basis-full rounded-xl bg-surface-bright p-4 text-sm">{recoveryCodes.join('\n')}</pre>}
           </section>
-        </div>
-      </main>
+          </div>
+        </main>
+      </div>
     </ProtectedRoute>
   );
 }
