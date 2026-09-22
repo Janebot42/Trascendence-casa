@@ -78,8 +78,24 @@ export function useAuth() {
     }
   }, []);
 
-  const signup = useCallback(async () => {
-    throw new Error('El registro se conectará cuando exista el formulario de username.');
+  const signup = useCallback(async (username: string, email: string, password: string) => {
+    setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      await api<LoginResponse>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: username.trim(),
+          email: email.trim() || undefined,
+          password,
+        }),
+      });
+      const current = await api<{ user: AuthUser }>('/me');
+      setAuthState({ user: current.user, isLoading: false, error: null, isAuthenticated: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo crear la cuenta';
+      setAuthState((prev) => ({ ...prev, isLoading: false, error: message, isAuthenticated: false }));
+      throw error;
+    }
   }, []);
 
   const refreshToken = useCallback(async () => {
