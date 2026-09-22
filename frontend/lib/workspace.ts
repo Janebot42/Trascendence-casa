@@ -39,6 +39,14 @@ export async function createBoard(organizationId: string, input: { name: string;
   })).board;
 }
 
+export async function updateBoard(boardId: string, input: { name?: string; description?: string | null }) {
+  return (await api<{ board: Board }>(`/boards/${boardId}`, { method: 'PATCH', body: JSON.stringify(input) })).board;
+}
+
+export async function archiveBoard(boardId: string) {
+  await api(`/boards/${boardId}`, { method: 'DELETE' });
+}
+
 export async function listLists(boardId: string) {
   return (await api<{ lists: BoardList[]; pagination: unknown }>(`/boards/${boardId}/lists?limit=100&offset=0`)).lists;
 }
@@ -79,6 +87,18 @@ export async function createList(boardId: string, name: string) {
     method: 'POST',
     body: JSON.stringify({ name }),
   })).list;
+}
+
+export async function updateList(listId: string, name: string) {
+  return (await api<{ list: BoardList }>(`/lists/${listId}`, { method: 'PATCH', body: JSON.stringify({ name }) })).list;
+}
+
+export async function archiveList(listId: string) {
+  await api(`/lists/${listId}`, { method: 'DELETE' });
+}
+
+export async function reorderLists(boardId: string, listIds: string[]) {
+  return (await api<{ lists: BoardList[] }>(`/boards/${boardId}/lists/reorder`, { method: 'POST', body: JSON.stringify({ listIds }) })).lists;
 }
 
 export async function createCard(listId: string, input: { title: string; description?: string | null; dueDate?: string | null; priority?: Card['priority']; completed?: boolean }) {

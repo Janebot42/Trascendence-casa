@@ -67,6 +67,14 @@ export async function registerListRoutes(
     return { list };
   });
 
+  typedApp.delete('/lists/:listId', {
+    preHandler: requireAuth(sessionsService),
+    schema: { params: listParamsSchema }
+  }, async (request) => {
+    await listsService.archiveList(request.params.listId, request.currentUser!.id);
+    return { ok: true };
+  });
+
   typedApp.post('/boards/:boardId/lists/reorder', {
     preHandler: requireAuth(sessionsService),
     schema: { params: boardParamsSchema, body: reorderListsSchema }

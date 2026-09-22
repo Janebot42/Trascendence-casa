@@ -59,6 +59,10 @@ export class PrismaListsRepository implements ListsRepository
       return reordered.map(mapList);
     });
   }
+
+  async archive(listId: string): Promise<void> {
+    await this.prisma.boardList.update({ where: { id: listId }, data: { archivedAt: new Date() } });
+  }
 }
 
 function mapList(row: { id: string; boardId: string; name: string; position: number; createdAt: Date; updatedAt: Date; archivedAt: Date | null }): BoardList 

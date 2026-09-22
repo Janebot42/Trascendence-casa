@@ -10,6 +10,7 @@ export interface BoardsRepository
   findMember(boardId: string, userId: string): Promise<BoardMember | null>;
   upsertMember(input: SetBoardMemberInput): Promise<BoardMember>;
   update(input: UpdateBoardInput): Promise<Board>;
+  archive(boardId: string): Promise<void>;
 }
 
 export class InMemoryBoardsRepository implements BoardsRepository 
@@ -81,6 +82,13 @@ export class InMemoryBoardsRepository implements BoardsRepository
     board.description = input.description === undefined ? board.description : input.description?.trim() || null;
     board.updatedAt = new Date();
     return board;
+  }
+
+  async archive(boardId: string): Promise<void> {
+    const board = this.boards.get(boardId);
+    if (!board || board.archivedAt) throw new Error('Board not found');
+    board.archivedAt = new Date();
+    board.updatedAt = new Date();
   }
 }
 

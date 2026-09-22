@@ -56,6 +56,10 @@ export class PrismaBoardsRepository implements BoardsRepository
     const row = await this.prisma.board.update({ where: { id: input.boardId }, data: { name: input.name?.trim(), description: input.description === undefined ? undefined : input.description?.trim() || null } });
     return mapBoard(row);
   }
+
+  async archive(boardId: string): Promise<void> {
+    await this.prisma.board.update({ where: { id: boardId }, data: { archivedAt: new Date() } });
+  }
 }
 
 function mapBoard(row: { id: string; organizationId: string; name: string; description: string | null; createdByUserId: string; createdAt: Date; updatedAt: Date; archivedAt: Date | null }): Board 

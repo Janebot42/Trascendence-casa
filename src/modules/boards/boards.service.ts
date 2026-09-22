@@ -47,6 +47,11 @@ export class BoardsService
     return this.boardsRepository.update({ ...input, boardId: board.id });
   }
 
+  async archiveBoard(boardId: string, actorUserId: string): Promise<void> {
+    const board = await this.getBoardForUser(boardId, actorUserId, 'admin');
+    await this.boardsRepository.archive(board.id);
+  }
+
   async setBoardMemberRole(input: {
     boardId: string;
     actorUserId: string;

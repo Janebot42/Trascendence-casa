@@ -10,6 +10,7 @@ export interface ListsRepository
   findById(listId: string): Promise<BoardList | null>;
   update(input: UpdateListInput): Promise<BoardList>;
   reorder(input: ReorderListsInput): Promise<BoardList[]>;
+  archive(listId: string): Promise<void>;
 }
 
 export class InMemoryListsRepository implements ListsRepository 
@@ -68,6 +69,13 @@ export class InMemoryListsRepository implements ListsRepository
     });
 
     return this.activeLists(input.boardId);
+  }
+
+  async archive(listId: string): Promise<void> {
+    const list = this.lists.get(listId);
+    if (!list || list.archivedAt) throw new Error('List not found');
+    list.archivedAt = new Date();
+    list.updatedAt = new Date();
   }
 
   private activeLists(boardId: string): BoardList[]

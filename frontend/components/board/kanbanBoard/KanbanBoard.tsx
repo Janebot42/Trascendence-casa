@@ -17,6 +17,9 @@ interface KanbanBoardProps {
   onSaveTask?: (task: TaskItem, newColumnId: string) => Promise<void>;
   onDeleteTask?: (taskId: string, columnId: string) => Promise<void>;
   onCreateList?: (title: string) => Promise<void>;
+  onRenameList?: (listId: string, name: string) => Promise<void>;
+  onArchiveList?: (listId: string) => Promise<void>;
+  onReorderLists?: (listIds: string[]) => Promise<void>;
   onError?: (error: unknown) => void;
 }
 
@@ -34,6 +37,9 @@ export default function KanbanBoard({
   onSaveTask,
   onDeleteTask,
   onCreateList,
+  onRenameList,
+  onArchiveList,
+  onReorderLists,
   onError,
 }: KanbanBoardProps) {
   // Estado del tablero (columnas, tarea seleccionada, filtrado)
@@ -67,9 +73,18 @@ export default function KanbanBoard({
     void operation().catch((error) => onError?.(error));
   };
 
+  const moveColumn = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= columns.length) return;
+    const next = [...columns];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    setColumns(next);
+    persist(onReorderLists ? () => onReorderLists(next.map((column) => column.id)) : undefined);
+  };
+
   return (
     <div className="kanban-board flex-1">
-      {filteredColumns.map((column) => (
+      {filteredColumns.map((column, index) => (
         <KanbanColumn
           key={column.id}
           column={column}
@@ -78,6 +93,12 @@ export default function KanbanBoard({
             persist(onCreateTask ? () => onCreateTask(columnId, title, priority) : undefined);
           }}
           onTaskClick={handleTaskClick}
+          onRenameList={(listId, name) => persist(onRenameList ? () => onRenameList(listId, name) : undefined)}
+          onArchiveList={(listId) => persist(onArchiveList ? () => onArchiveList(listId) : undefined)}
+          onMoveLeft={() => moveColumn(index, -1)}
+          onMoveRight={() => moveColumn(index, 1)}
+          canMoveLeft={index > 0}
+          canMoveRight={index < filteredColumns.length - 1}
         />
       ))}
 

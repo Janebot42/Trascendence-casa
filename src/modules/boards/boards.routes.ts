@@ -75,6 +75,14 @@ export async function registerBoardRoutes(
     return { board };
   });
 
+  typedApp.delete('/boards/:boardId', {
+    preHandler: requireAuth(sessionsService),
+    schema: { params: boardParamsSchema }
+  }, async (request) => {
+    await boardsService.archiveBoard(request.params.boardId, request.currentUser!.id);
+    return { ok: true };
+  });
+
   typedApp.put('/boards/:boardId/members/:userId', {
     preHandler: requireAuth(sessionsService),
     schema: { params: boardMemberParamsSchema, body: boardMemberSchema }

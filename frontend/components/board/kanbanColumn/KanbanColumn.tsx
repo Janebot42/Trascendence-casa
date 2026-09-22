@@ -12,6 +12,12 @@ interface KanbanColumnProps {
   column: BoardColumn;
   onAddTask: (columnId: string, title: string, priority: TaskPriority) => void;
   onTaskClick: (task: TaskItem, columnId: string) => void;
+  onRenameList?: (listId: string, name: string) => void;
+  onArchiveList?: (listId: string) => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  canMoveLeft?: boolean;
+  canMoveRight?: boolean;
 }
 
 /**
@@ -22,6 +28,12 @@ export default function KanbanColumn({
   column,
   onAddTask,
   onTaskClick,
+  onRenameList,
+  onArchiveList,
+  onMoveLeft,
+  onMoveRight,
+  canMoveLeft,
+  canMoveRight,
 }: KanbanColumnProps) {
   const {
     isAdding,
@@ -46,7 +58,7 @@ export default function KanbanColumn({
 
   return (
     <div className={`kanban-column ${isDoneColumn ? 'opacity-80' : ''}`}>
-      <ColumnHeader title={column.title} taskCount={column.tasks.length} />
+      <ColumnHeader title={column.title} taskCount={column.tasks.length} onRename={(name) => onRenameList?.(column.id, name)} onArchive={() => onArchiveList?.(column.id)} onMoveLeft={onMoveLeft} onMoveRight={onMoveRight} canMoveLeft={canMoveLeft} canMoveRight={canMoveRight} />
 
       <div className="kanban-cards">
         {column.tasks.map((task) => (

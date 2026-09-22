@@ -10,6 +10,8 @@ import { ProtectedRoute } from '@/components/auth';
 import { BoardColumn, TaskItem } from '@/types/board';
 import {
   archiveCard,
+  archiveBoard,
+  archiveList,
   Board,
   createBoard,
   createCard,
@@ -26,7 +28,10 @@ import {
   listLists,
   listOrganizations,
   moveCard,
+  reorderLists,
+  updateBoard,
   updateCard,
+  updateList,
 } from '@/lib/workspace';
 
 type LoadedWorkspace = { board: Board; columns: BoardColumn[] };
@@ -47,6 +52,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [workspace, setWorkspace] = useState<LoadedWorkspace | null>(null);
+  const [organizations, setOrganizations] = useState<Awaited<ReturnType<typeof listOrganizations>>>([]);
   const [boards, setBoards] = useState<Board[]>([]);
   const [selectedBoardId, setSelectedBoardId] = useState('');
   const [labels, setLabels] = useState<Awaited<ReturnType<typeof listLabels>>>([]);
@@ -54,6 +60,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [isEditBoardOpen, setIsEditBoardOpen] = useState(false);
+  const [editBoardName, setEditBoardName] = useState('');
+  const [editBoardDescription, setEditBoardDescription] = useState('');
+  const [isEditingBoard, setIsEditingBoard] = useState(false);
   const [isCreateBoardOpen, setIsCreateBoardOpen] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
@@ -78,8 +88,9 @@ export default function Home() {
 
     void (async () => {
       try {
-        const organizations = await listOrganizations();
-        const organization = organizations[0];
+        const loadedOrganizations = await listOrganizations();
+        if (active) setOrganizations(loadedOrganizations);
+        const organization = loadedOrganizations.find((candidate) => candidate.id === organizationId) ?? loadedOrganizations[0];
         if (!organization) {
           if (active) {
             setOrganizationId(null);
@@ -124,7 +135,7 @@ export default function Home() {
     })();
 
     return () => { active = false; };
-  }, [refreshKey, selectedBoardId]);
+  }, [refreshKey, selectedBoardId, organizationId]);
 
   const findTaskColumn = (taskId: string) => workspace?.columns.find((column) => column.tasks.some((task) => task.id === taskId));
 
@@ -163,6 +174,57 @@ export default function Home() {
     if (!workspace?.board.id) return;
     await createList(workspace.board.id, title);
     reload();
+  };
+
+  const handleRenameList = async (listId: string, name: string) => {
+    await updateList(listId, name);
+    reload();
+  };
+
+  const handleArchiveList = async (listId: string) => {
+    if (!window.confirm('¿Quieres archivar esta lista y sus tarjetas?')) return;
+    await archiveList(listId);
+    reload();
+  };
+
+  const handleReorderLists = async (listIds: string[]) => {
+    if (!workspace?.board.id) return;
+    await reorderLists(workspace.board.id, listIds);
+    reload();
+  };
+
+  const openEditBoard = () => {
+    if (!workspace?.board.id) return;
+    setEditBoardName(workspace.board.name);
+    setEditBoardDescription(workspace.board.description ?? '');
+    setIsEditBoardOpen(true);
+  };
+
+  const handleEditBoard = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!workspace?.board.id || editBoardName.trim().length < 2) return;
+    setIsEditingBoard(true);
+    setError(null);
+    try {
+      await updateBoard(workspace.board.id, { name: editBoardName.trim(), description: editBoardDescription.trim() || null });
+      setIsEditBoardOpen(false);
+      reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo editar el tablero');
+    } finally {
+      setIsEditingBoard(false);
+    }
+  };
+
+  const handleArchiveBoard = async () => {
+    if (!workspace?.board.id || !window.confirm('¿Quieres archivar este tablero?')) return;
+    try {
+      await archiveBoard(workspace.board.id);
+      setSelectedBoardId('');
+      reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo archivar el tablero');
+    }
   };
 
   const handleCreateListFromToolbar = async (event: React.FormEvent) => {
@@ -256,10 +318,17 @@ export default function Home() {
         />
         <WorkspaceToolbar
           boards={boards}
+          organizations={organizations}
+          selectedOrganizationId={organizationId ?? ''}
           selectedBoardId={selectedBoardId}
           labels={labels}
           onBoardChange={(boardId) => {
             setSelectedBoardId(boardId);
+            setRefreshKey((value) => value + 1);
+          }}
+          onOrganizationChange={(nextOrganizationId) => {
+            setOrganizationId(nextOrganizationId);
+            setSelectedBoardId('');
             setRefreshKey((value) => value + 1);
           }}
           onCreateBoard={() => {
@@ -271,7 +340,7 @@ export default function Home() {
           onDeleteLabel={handleDeleteLabel}
           disabled={isLoading}
         />
-        <BoardHeader title={workspace?.board.name ?? 'Tablero'} />
+        <BoardHeader title={workspace?.board.name ?? 'Tablero'} onEdit={workspace?.board.id ? openEditBoard : undefined} onArchive={workspace?.board.id ? handleArchiveBoard : undefined} />
         {isLoading && <div className="p-6 text-on-surface-variant">Cargando tablero...</div>}
         {!isLoading && error && <div className="p-6 text-error">{error}</div>}
         {!isLoading && !error && workspace && workspace.columns.length > 0 && (
@@ -284,6 +353,9 @@ export default function Home() {
             onSaveTask={handleSaveTask}
             onDeleteTask={async (taskId) => handleDeleteTask(taskId)}
             onCreateList={handleCreateList}
+            onRenameList={handleRenameList}
+            onArchiveList={handleArchiveList}
+            onReorderLists={handleReorderLists}
             onError={(cause) => setError(cause instanceof Error ? cause.message : 'La operación ha fallado')}
           />
         )}
@@ -314,6 +386,17 @@ export default function Home() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {isEditBoardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-board-title">
+          <form onSubmit={handleEditBoard} className="w-full max-w-lg rounded-2xl border border-outline-variant bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between gap-4"><h2 id="edit-board-title" className="text-xl font-semibold">Editar tablero</h2><button type="button" onClick={() => setIsEditBoardOpen(false)} aria-label="Cerrar" className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">close</span></button></div>
+            <label className="mt-6 block text-sm font-medium">Nombre<input value={editBoardName} onChange={(event) => setEditBoardName(event.target.value)} required minLength={2} maxLength={100} autoFocus disabled={isEditingBoard} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>
+            <label className="mt-4 block text-sm font-medium">Descripción <span className="font-normal text-on-surface-variant">(opcional)</span><textarea value={editBoardDescription} onChange={(event) => setEditBoardDescription(event.target.value)} maxLength={500} rows={3} disabled={isEditingBoard} className="mt-2 w-full resize-none rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsEditBoardOpen(false)} className="rounded-xl border border-outline-variant px-4 py-3 font-semibold text-on-surface-variant">Cancelar</button><button type="submit" disabled={isEditingBoard} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{isEditingBoard ? 'Guardando...' : 'Guardar cambios'}</button></div>
+          </form>
         </div>
       )}
 

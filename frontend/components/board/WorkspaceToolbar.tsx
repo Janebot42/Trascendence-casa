@@ -1,12 +1,15 @@
 'use client';
 
-import type { Board, Label } from '@/lib/workspace';
+import type { Board, Label, Organization } from '@/lib/workspace';
 
 type WorkspaceToolbarProps = {
   boards: Board[];
+  organizations: Organization[];
+  selectedOrganizationId: string;
   selectedBoardId: string;
   labels: Label[];
   onBoardChange: (boardId: string) => void;
+  onOrganizationChange: (organizationId: string) => void;
   onCreateBoard: () => void;
   onCreateList: () => void;
   onCreateLabel: () => void;
@@ -16,9 +19,12 @@ type WorkspaceToolbarProps = {
 
 export default function WorkspaceToolbar({
   boards,
+  organizations,
+  selectedOrganizationId,
   selectedBoardId,
   labels,
   onBoardChange,
+  onOrganizationChange,
   onCreateBoard,
   onCreateList,
   onCreateLabel,
@@ -28,6 +34,7 @@ export default function WorkspaceToolbar({
   return (
     <section className="flex flex-col gap-3 border-b border-outline-variant bg-white px-6 py-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
+        {organizations.length > 1 && <div className="flex min-w-0 items-center gap-2"><label className="shrink-0 text-xs font-semibold uppercase tracking-wide text-on-surface-variant" htmlFor="organization-selector">Espacio</label><select id="organization-selector" value={selectedOrganizationId} onChange={(event) => onOrganizationChange(event.target.value)} disabled={disabled} className="min-w-0 max-w-full rounded-lg border border-outline-variant bg-surface-bright px-3 py-2 text-sm font-semibold text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></div>}
         <div className="flex min-w-0 items-center gap-3">
           <label className="shrink-0 text-xs font-semibold uppercase tracking-wide text-on-surface-variant" htmlFor="board-selector">Tablero</label>
           <select id="board-selector" value={selectedBoardId} onChange={(event) => onBoardChange(event.target.value)} disabled={disabled || boards.length === 0} className="min-w-0 max-w-full rounded-lg border border-outline-variant bg-surface-bright px-3 py-2 text-sm font-semibold text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">

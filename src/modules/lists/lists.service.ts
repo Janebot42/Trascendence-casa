@@ -42,4 +42,9 @@ export class ListsService
     await this.boardsService.getBoardForUser(input.boardId, input.actorUserId, 'write');
     return this.listsRepository.reorder(input);
   }
+
+  async archiveList(listId: string, actorUserId: string): Promise<void> {
+    const list = await this.getListForUser(listId, actorUserId, 'write');
+    await this.listsRepository.archive(list.id);
+  }
 }

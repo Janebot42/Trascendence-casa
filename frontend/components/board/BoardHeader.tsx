@@ -44,23 +44,25 @@ function HeaderButton({icon, label, onClick}: {icon: string, label: string, onCl
 }
 
 // Grupo de acciones rápidas del board.
-function HeaderButtonsList() {
+function HeaderButtonsList({ onEdit, onArchive }: { onEdit?: () => void; onArchive?: () => void }) {
 	return (
 		<div className="flex items-center gap-3 flex-wrap">
     	    <HeaderButton icon="filter_list" label="Filter" onClick={() => {}} />
 
 			<HeaderButton icon="person_add" label="Share" onClick={() => {}} />
+			{onEdit && <HeaderButton icon="edit" label="Edit" onClick={onEdit} />}
+			{onArchive && <HeaderButton icon="archive" label="Archive" onClick={onArchive} />}
     	</div>
 	);
 }
 
 // Encabezado principal del tablero.
-export default function BoardHeader({ title = 'Website Redesign' }: { title?: string }) {
+export default function BoardHeader({ title = 'Website Redesign', onEdit, onArchive }: { title?: string; onEdit?: () => void; onArchive?: () => void }) {
   return (
     <div className="px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 bg-surface-container-lowest border-b border-outline-variant">
 		<HeaderTitle title={title} />
 
-		<HeaderButtonsList />
+		<HeaderButtonsList onEdit={onEdit} onArchive={onArchive} />
     </div>
   );
 }
