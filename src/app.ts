@@ -151,7 +151,6 @@ export async function buildApp()
   });
 
   app.get('/health', async () => ({ ok: true }));
-  await registerUiRoutes(app);
   await registerAuthRoutes(app, authService, sessionsService);
   await registerOrganizationRoutes(app, organizationsService, sessionsService);
   await registerBoardRoutes(app, boardsService, sessionsService);
@@ -159,6 +158,7 @@ export async function buildApp()
   await registerCardRoutes(app, cardsService, sessionsService);
   await registerTwoFactorRoutes(app, twoFactorService, sessionsService);
   await registerUserRoutes(app, sessionsService, usersService);
+  await registerUiRoutes(app);
 
   return app;
 }

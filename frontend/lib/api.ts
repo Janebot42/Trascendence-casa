@@ -10,7 +10,10 @@ export class ApiError extends Error {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body !== undefined && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  const response = await fetch(`/api${path}`, { ...init, headers, credentials: 'include' });
+  // In dev Next runs on 3001 and proxies /api to Fastify on 3000.
+  // In the unified build Fastify serves this frontend from the same origin.
+  const apiPrefix = typeof window !== 'undefined' && window.location.port === '3001' ? '/api' : '';
+  const response = await fetch(`${apiPrefix}${path}`, { ...init, headers, credentials: 'include' });
   const text = await response.text();
   let data: T | ApiErrorData = {};
   if (text) {

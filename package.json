@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/typescript/bin/tsc -w -p tsconfig.json",
-    "build": "prisma generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "prisma generate && node ./node_modules/typescript/bin/tsc -p tsconfig.json",
+    "dev:frontend": "npm --prefix frontend run dev",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
