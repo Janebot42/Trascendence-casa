@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { mockUsers } from '@/data/mockBoardData';
-import { BoardColumn } from '@/types/board';
+import { BoardColumn, TaskItem, TaskPriority, User } from '@/types/board';
 import KanbanColumn from '../kanbanColumn';
 import TaskModal from '../taskModal/TaskModal';
 import { useKanbanState } from './useKanbanState';
@@ -12,6 +11,12 @@ import { useKanbanHandlers } from './useKanbanHandlers';
 interface KanbanBoardProps {
   initialColumns: BoardColumn[];
   searchQuery: string;
+  users?: User[];
+  onCreateTask?: (columnId: string, title: string, priority: TaskPriority) => Promise<void>;
+  onSaveTask?: (task: TaskItem, newColumnId: string) => Promise<void>;
+  onDeleteTask?: (taskId: string, columnId: string) => Promise<void>;
+  onCreateList?: (title: string) => Promise<void>;
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -19,7 +24,16 @@ interface KanbanBoardProps {
  * Orquestador que combina hooks de estado y handlers
  * Responsable de renderizar columnas y modal
  */
-export default function KanbanBoard({ initialColumns, searchQuery }: KanbanBoardProps) {
+export default function KanbanBoard({
+  initialColumns,
+  searchQuery,
+  users = [],
+  onCreateTask,
+  onSaveTask,
+  onDeleteTask,
+  onCreateList,
+  onError,
+}: KanbanBoardProps) {
   // Estado del tablero (columnas, tarea seleccionada, filtrado)
   const {
     columns,
@@ -46,20 +60,33 @@ export default function KanbanBoard({ initialColumns, searchQuery }: KanbanBoard
     onSelectedColumnIdChange: setSelectedColumnId,
   });
 
+  const persist = (operation: (() => Promise<void>) | undefined) => {
+    if (!operation) return;
+    void operation().catch((error) => onError?.(error));
+  };
+
   return (
     <div className="kanban-board flex-1">
       {filteredColumns.map((column) => (
         <KanbanColumn
           key={column.id}
           column={column}
-          onAddTask={handleAddTask}
+          onAddTask={(columnId, title, priority) => {
+            handleAddTask(columnId, title, priority);
+            persist(onCreateTask ? () => onCreateTask(columnId, title, priority) : undefined);
+          }}
           onTaskClick={handleTaskClick}
         />
       ))}
 
       {/* Botón para agregar otra lista. */}
       <button
-        onClick={handleAddColumn}
+        onClick={() => {
+          const title = prompt('Enter new list name:');
+          if (!title?.trim()) return;
+          handleAddColumn(title.trim());
+          persist(onCreateList ? () => onCreateList(title.trim()) : undefined);
+        }}
         className="w-70 min-w-70 flex items-center gap-2 p-3 text-on-surface bg-surface-container hover:bg-surface-container-high rounded-lg hover:text-on-surface transition-colors h-fit text-[14px] font-medium cursor-pointer shrink-0"
       >
         <span className="material-symbols-outlined text-[20px]">add</span>
@@ -72,10 +99,16 @@ export default function KanbanBoard({ initialColumns, searchQuery }: KanbanBoard
           task={selectedTask}
           currentColumnId={selectedColumnId}
           columns={columns}
-          users={mockUsers}
+          users={users}
           onClose={() => setSelectedTask(null)}
-          onSave={handleSaveTask}
-          onDelete={handleDeleteTask}
+          onSave={(task, columnId) => {
+            handleSaveTask(task, columnId);
+            persist(onSaveTask ? () => onSaveTask(task, columnId) : undefined);
+          }}
+          onDelete={(taskId, columnId) => {
+            handleDeleteTask(taskId, columnId);
+            persist(onDeleteTask ? () => onDeleteTask(taskId, columnId) : undefined);
+          }}
         />
       )}
     </div>

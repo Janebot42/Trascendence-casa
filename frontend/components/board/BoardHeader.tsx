@@ -3,13 +3,13 @@
 import { useState } from 'react';
 
 // Título del board con opción de favorito.
-function HeaderTitle(){
+function HeaderTitle({ title }: { title: string }){
 	const [isStarred, setIsStarred] = useState(false);
 
 	return (
 		<div className="flex items-center gap-3">
         <h2 className="text-[32px] font-bold text-on-surface tracking-tight leading-none">
-          Website Redesign
+          {title}
         </h2>
         <button
           onClick={() => setIsStarred(!isStarred)}
@@ -55,10 +55,10 @@ function HeaderButtonsList() {
 }
 
 // Encabezado principal del tablero.
-export default function BoardHeader() {
+export default function BoardHeader({ title = 'Website Redesign' }: { title?: string }) {
   return (
     <div className="px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 bg-surface-container-lowest border-b border-outline-variant">
-		<HeaderTitle />
+		<HeaderTitle title={title} />
 
 		<HeaderButtonsList />
     </div>

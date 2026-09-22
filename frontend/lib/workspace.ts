@@ -1,0 +1,63 @@
+import { api } from './api';
+
+export type Page<T> = { items: T[]; limit: number; offset: number; total: number };
+
+export type Organization = { id: string; name: string; slug: string; role: 'owner' | 'admin' | 'member' };
+export type Board = { id: string; organizationId: string; name: string; description: string | null };
+export type BoardList = { id: string; boardId: string; name: string; position: number };
+export type Card = {
+  id: string;
+  listId: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  position: number;
+};
+
+export async function listOrganizations() {
+  return (await api<{ organizations: Organization[]; pagination: unknown }>('/organizations?limit=100&offset=0')).organizations;
+}
+
+export async function listBoards(organizationId: string) {
+  return (await api<{ boards: Board[]; pagination: unknown }>(`/organizations/${organizationId}/boards?limit=100&offset=0`)).boards;
+}
+
+export async function listLists(boardId: string) {
+  return (await api<{ lists: BoardList[]; pagination: unknown }>(`/boards/${boardId}/lists?limit=100&offset=0`)).lists;
+}
+
+export async function listCards(listId: string) {
+  return (await api<{ cards: Card[]; pagination: unknown }>(`/lists/${listId}/cards?limit=100&offset=0`)).cards;
+}
+
+export async function createList(boardId: string, name: string) {
+  return (await api<{ list: BoardList }>(`/boards/${boardId}/lists`, {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  })).list;
+}
+
+export async function createCard(listId: string, input: { title: string; description?: string | null; dueDate?: string | null }) {
+  return (await api<{ card: Card }>(`/lists/${listId}/cards`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })).card;
+}
+
+export async function updateCard(cardId: string, input: { title?: string; description?: string | null; dueDate?: string | null }) {
+  return (await api<{ card: Card }>(`/cards/${cardId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })).card;
+}
+
+export async function moveCard(cardId: string, targetListId: string) {
+  return (await api<{ card: Card }>(`/cards/${cardId}/move`, {
+    method: 'POST',
+    body: JSON.stringify({ targetListId }),
+  })).card;
+}
+
+export async function archiveCard(cardId: string) {
+  await api(`/cards/${cardId}`, { method: 'DELETE' });
+}
