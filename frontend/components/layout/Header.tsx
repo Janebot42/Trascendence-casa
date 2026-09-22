@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth/useAuth';
 
 // Props del header global.
 interface HeaderProps {
@@ -81,19 +83,38 @@ function NotificationButton() {
 }
 
 function ProfileAvatar() {
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      router.push('/login');
+    } finally {
+      setIsLoggingOut(false);
+      setIsOpen(false);
+    }
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => alert('Profile menu no está implementado todavía.')}
-      className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant cursor-pointer hover:border-primary transition-colors"
-      aria-label="Profile menu"
-    >
-      <img
-        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSSuK40_tNbQ250GY_-XH073wfT_XbZrfkh2vJW7KXOuaUEoWrYBNRkY6U3o4vDe-9WwwIzMe39uRwhcse4x43xIQwFIQFuCxI_YI9sndOGtZgyOgMp5BD5ra2nsHkYbZDrKpz_63wzhBeKik27SuPqrOUT7ixIqSOVRTpyZk1OR6pEfR2tsE17AH_2lAanvxLgDPoHhwXi0W0Y6HyLddAJRd9vg4tfWQC7zZOdYqX0GJNZk4oez6H-w"
-        alt="User Profile"
-        className="w-full h-full object-cover"
-      />
-    </button>
+    <div className="relative">
+      <button type="button" onClick={() => setIsOpen((value) => !value)} className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-outline-variant bg-primary text-xs font-bold text-white transition-colors hover:border-primary" aria-label="Abrir perfil" aria-expanded={isOpen}>
+        {(user?.username?.slice(0, 1).toUpperCase() ?? 'U')}
+      </button>
+      {isOpen && <div className="absolute right-0 top-11 z-50 w-56 rounded-xl border border-outline-variant bg-white p-3 shadow-lg">
+        <div className="border-b border-outline-variant pb-3">
+          <p className="text-xs text-on-surface-variant">Sesión iniciada como</p>
+          <p className="mt-1 truncate font-semibold text-on-surface">{user?.username ?? 'Cargando...'}</p>
+        </div>
+        <button type="button" onClick={handleLogout} disabled={isLoggingOut} className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-semibold text-error transition-colors hover:bg-error/10 disabled:opacity-50">
+          <span className="material-symbols-outlined text-[18px]">logout</span>
+          {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}
+        </button>
+      </div>}
+    </div>
   );
 }
 
