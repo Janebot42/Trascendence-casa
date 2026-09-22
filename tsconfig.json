@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true, //Permite importar librerias de CommonJS (el sistema antiguo de Node.js que usa require) utilizando el sistema moderno de import
+    "forceConsistentCasingInFileNames": true, //obliga a ser coherente con las mayusculas y minusculas en los nombres de los archivos cuando importas
+    "skipLibCheck": true, //ignora los errores de tipado en las librerias externas
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}

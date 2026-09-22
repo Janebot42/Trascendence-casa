@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* Variables base del tema. */
+@layer base {
+  :root {
+    --background: #F4F5F7;
+    --foreground: #191b24;
+  }
+
+  /* Estilos globales del body. */
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Tokens reutilizados por Tailwind. */
+@theme {
+  --color-primary: #004bca;
+  --color-primary-container: #0061ff;
+  --color-surface-bright: #faf8ff;
+  --color-surface-container: #ecedfa;
+  --color-surface-container-high: #e7e7f4;
+  --color-surface-container-highest: #e1e1ee;
+  --color-surface-container-low: #f2f3ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-on-surface: #191b24;
+  --color-on-surface-variant: #424656;
+  --color-outline: #737687;
+  --color-outline-variant: #c2c6d9;
+  --color-secondary-container: #82f9be;
+  --color-on-secondary-fixed: #002113;
+  --color-error: #ba1a1a;
+}
+
+/* Clases visuales específicas del Kanban. */
+.kanban-board {
+  display: flex;
+  overflow-x: auto;
+  padding: 24px;
+  gap: 12px;
+  height: calc(100vh - 140px);
+  align-items: flex-start;
+}
+
+/* Cada columna mantiene un ancho fijo. */
+.kanban-column {
+  background-color: #EBEDF0;
+  border-radius: 8px;
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+/* Título y contador de la columna. */
+.kanban-column-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #191b24;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Lista vertical de tarjetas dentro de la columna. */
+.kanban-cards {
+  padding: 0 12px 12px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+/* Tarjeta base de cada tarea. */
+.kanban-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E4E9;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1), 0px 1px 2px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.kanban-card:hover {
+  box-shadow: 0px 4px 6px -1px rgba(0, 0, 0, 0.1), 0px 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Etiquetas de prioridad reutilizables. */
+.label-urgent {
+  background-color: #ffebe6;
+  color: #bf2600;
+}
+
+.label-medium {
+  background-color: #e6fcff;
+  color: #006644;
+}
+
+.label-low {
+  background-color: #e6f7ff;
+  color: #0052cc;
+}
+
+/* Barras de scroll personalizadas. */
+.kanban-cards::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kanban-cards::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kanban-cards::-webkit-scrollbar-thumb {
+  background-color: #c2c6d9;
+  border-radius: 10px;
+}
+
+.kanban-board::-webkit-scrollbar {
+  height: 8px;
+}
+
+.kanban-board::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 0 24px;
+}
+
+.kanban-board::-webkit-scrollbar-thumb {
+  background-color: #c2c6d9;
+  border-radius: 10px;
+}
