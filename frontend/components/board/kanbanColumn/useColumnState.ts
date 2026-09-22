@@ -31,15 +31,15 @@ export function useColumnState(): UseColumnStateReturn {
     setIsAdding(true);
   }, []);
 
-  const cancelAdding = useCallback(() => {
-    setIsAdding(false);
-    resetForm();
-  }, []);
-
   const resetForm = useCallback(() => {
     setNewTitle('');
     setNewPriority(DEFAULT_PRIORITY);
   }, []);
+
+  const cancelAdding = useCallback(() => {
+    setIsAdding(false);
+    resetForm();
+  }, [resetForm]);
 
   return {
     isAdding,

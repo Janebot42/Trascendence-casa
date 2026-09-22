@@ -53,6 +53,8 @@ export function useTaskModalState(
   );
 
   useEffect(() => {
+    // El modal reutiliza el mismo componente cuando cambia la tarea seleccionada.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData(createTaskFormState(task, currentColumnId));
   }, [task, currentColumnId]);
 

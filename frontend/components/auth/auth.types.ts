@@ -3,16 +3,17 @@
  */
 
 export interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
 }
 
 export interface AuthUser {
   id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-  role?: string;
+  username: string;
+  email: string | null;
+  displayName: string | null;
+  role: string;
+  status: string;
 }
 
 export interface AuthState {
@@ -23,9 +24,9 @@ export interface AuthState {
 }
 
 export interface LoginResponse {
-  user: AuthUser;
-  token: string;
-  refreshToken?: string;
+  user?: AuthUser;
+  status: 'authenticated' | 'requires_2fa';
+  challengeToken?: string;
 }
 
 /**

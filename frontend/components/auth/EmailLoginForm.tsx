@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { LoginCredentials } from './auth.types';
 
-interface EmailLoginFormProps {
+interface UsernameLoginFormProps {
   onSubmit: (credentials: LoginCredentials) => Promise<void>;
   isLoading?: boolean;
   error?: string | null;
@@ -17,8 +17,8 @@ export default function EmailLoginForm({
   onSubmit,
   isLoading = false,
   error,
-}: EmailLoginFormProps) {
-  const [email, setEmail] = useState('');
+}: UsernameLoginFormProps) {
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -29,8 +29,8 @@ export default function EmailLoginForm({
       setLocalError(null);
 
       // Validación básica
-      if (!email.trim()) {
-        setLocalError('Email is required');
+      if (!username.trim()) {
+        setLocalError('Username is required');
         return;
       }
 
@@ -39,35 +39,30 @@ export default function EmailLoginForm({
         return;
       }
 
-      if (!email.includes('@')) {
-        setLocalError('Please enter a valid email');
-        return;
-      }
-
       try {
-        await onSubmit({ email: email.trim(), password });
+        await onSubmit({ username: username.trim(), password });
       } catch (err) {
         setLocalError(err instanceof Error ? err.message : 'Login failed');
       }
     },
-    [email, password, onSubmit]
+    [username, password, onSubmit]
   );
 
   const displayError = error || localError;
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-4">
-      {/* Campo de Email */}
+      {/* Campo de usuario */}
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-on-surface">
-          Email
+        <label htmlFor="username" className="text-sm font-medium text-on-surface">
+          Usuario
         </label>
         <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="tu@empresa.com"
+          id="username"
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="tu_usuario"
           disabled={isLoading}
           className="w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-on-surface placeholder-on-surface-variant transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
         />

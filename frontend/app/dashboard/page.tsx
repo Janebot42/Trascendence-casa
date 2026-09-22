@@ -7,6 +7,7 @@ import DashboardHero from '@/components/dashboard/DashboardHero';
 import BoardCard from '@/components/dashboard/BoardCard';
 import VelocityWidget from '@/components/dashboard/VelocityWidget';
 import ActivityFeed from '@/components/dashboard/ActivityFeed';
+import { ProtectedRoute } from '@/components/auth';
 
 const activeBoards = [
   {
@@ -73,7 +74,7 @@ export default function DashboardPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
-    <>
+    <ProtectedRoute>
       <Sidebar
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
@@ -126,6 +127,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-    </>
+    </ProtectedRoute>
   );
 }

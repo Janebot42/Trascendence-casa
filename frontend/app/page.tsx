@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import BoardHeader from '@/components/board/BoardHeader';
 import KanbanBoard from '@/components/board/kanbanBoard/KanbanBoard';
 import { initialColumns } from '@/data/mockBoardData';
+import { ProtectedRoute } from '@/components/auth';
 
 // Página principal del tablero Kanban.
 export default function Home() {
@@ -24,7 +25,7 @@ export default function Home() {
   };
 
   return (
-    <>
+    <ProtectedRoute>
       {/* Navegación lateral. */}
       <Sidebar
         isOpenMobile={isMobileSidebarOpen}
@@ -50,6 +51,6 @@ export default function Home() {
           searchQuery={searchQuery}
         />
       </main>
-    </>
+    </ProtectedRoute>
   );
 }
