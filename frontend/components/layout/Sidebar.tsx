@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 interface SidebarProps {
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
+  onCreateBoard?: () => void;
 }
 
 type NavItemProps = {
@@ -51,7 +52,7 @@ function NavItem({ href, icon, label, active, onClick, fill }: NavItemProps) {
   );
 }
 
-export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
+export default function Sidebar({ isOpenMobile, onCloseMobile, onCreateBoard }: SidebarProps) {
   const pathname = usePathname();
 
   // Estado visual de los enlaces activos.
@@ -119,13 +120,16 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
           />
         </nav>
 
-        {/* CTA inferior para crear proyectos. */}
+        {/* CTA inferior para crear tableros. */}
         <div className="px-6 mt-auto">
           <button
-            onClick={() => alert('Create Project no está implementado todavía.')}
+            onClick={() => {
+              onCloseMobile?.();
+              onCreateBoard?.();
+            }}
             className="w-full bg-primary text-white text-[12px] font-semibold py-2.5 rounded-lg hover:bg-primary-container transition-colors shadow-xs cursor-pointer active:scale-95"
           >
-            Create Project
+            Create board
           </button>
         </div>
       </aside>

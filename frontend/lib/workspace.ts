@@ -18,8 +18,22 @@ export async function listOrganizations() {
   return (await api<{ organizations: Organization[]; pagination: unknown }>('/organizations?limit=100&offset=0')).organizations;
 }
 
+export async function createOrganization(input: { name: string }) {
+  return (await api<{ organization: Organization }>('/organizations', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })).organization;
+}
+
 export async function listBoards(organizationId: string) {
   return (await api<{ boards: Board[]; pagination: unknown }>(`/organizations/${organizationId}/boards?limit=100&offset=0`)).boards;
+}
+
+export async function createBoard(organizationId: string, input: { name: string; description?: string | null }) {
+  return (await api<{ board: Board }>(`/organizations/${organizationId}/boards`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })).board;
 }
 
 export async function listLists(boardId: string) {
