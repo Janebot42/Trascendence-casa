@@ -27,7 +27,15 @@ export interface LoginResponse {
   user?: AuthUser;
   status: 'authenticated' | 'requires_2fa';
   challengeToken?: string;
+  expiresAt?: string;
 }
+
+export type TwoFactorMethod = 'totp' | 'recovery_code';
+
+export type TwoFactorChallenge = {
+  challengeToken: string;
+  expiresAt: string;
+};
 
 /**
  * Respuesta de error de autenticación

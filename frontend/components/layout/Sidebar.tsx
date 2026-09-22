@@ -108,6 +108,15 @@ export default function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
             active={isBoardsActive}
             fill={isBoardsActive}
           />
+
+          <NavItem
+            href="/security"
+            onClick={onCloseMobile}
+            icon="shield"
+            label="Security"
+            active={pathname === '/security'}
+            fill={pathname === '/security'}
+          />
         </nav>
 
         {/* CTA inferior para crear proyectos. */}

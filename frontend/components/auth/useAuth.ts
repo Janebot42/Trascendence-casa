@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { AuthState, AuthUser, LoginResponse } from './auth.types';
+import { AuthState, AuthUser, LoginResponse, TwoFactorChallenge, TwoFactorMethod } from './auth.types';
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
@@ -11,6 +11,7 @@ export function useAuth() {
     error: null,
     isAuthenticated: false,
   });
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<TwoFactorChallenge | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -32,7 +33,10 @@ export function useAuth() {
         body: JSON.stringify({ username: username.trim(), password }),
       });
       if (data.status === 'requires_2fa') {
-        throw new Error('Esta cuenta requiere 2FA; el formulario de segundo factor se conectará en la siguiente fase.');
+        if (!data.challengeToken || !data.expiresAt) throw new Error('El desafío 2FA recibido no es válido.');
+        setTwoFactorChallenge({ challengeToken: data.challengeToken, expiresAt: data.expiresAt });
+        setAuthState((prev) => ({ ...prev, isLoading: false, error: null, isAuthenticated: false }));
+        return;
       }
       const current = await api<{ user: AuthUser }>('/me');
       setAuthState({ user: current.user, isLoading: false, error: null, isAuthenticated: true });
@@ -43,10 +47,35 @@ export function useAuth() {
     }
   }, []);
 
+  const completeTwoFactorLogin = useCallback(async (method: TwoFactorMethod, code: string) => {
+    if (!twoFactorChallenge) throw new Error('No hay ningún desafío 2FA pendiente.');
+    setAuthState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      await api<LoginResponse>('/auth/login/2fa', {
+        method: 'POST',
+        body: JSON.stringify({
+          challengeToken: twoFactorChallenge.challengeToken,
+          method,
+          code: code.trim(),
+        }),
+      });
+      const current = await api<{ user: AuthUser }>('/me');
+      setTwoFactorChallenge(null);
+      setAuthState({ user: current.user, isLoading: false, error: null, isAuthenticated: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo verificar el segundo factor';
+      setAuthState((prev) => ({ ...prev, isLoading: false, error: message, isAuthenticated: false }));
+      throw error;
+    }
+  }, [twoFactorChallenge]);
+
   const logout = useCallback(async () => {
     setAuthState((prev) => ({ ...prev, isLoading: true }));
     try { await api('/auth/logout', { method: 'POST' }); }
-    finally { setAuthState({ user: null, isLoading: false, error: null, isAuthenticated: false }); }
+    finally {
+      setTwoFactorChallenge(null);
+      setAuthState({ user: null, isLoading: false, error: null, isAuthenticated: false });
+    }
   }, []);
 
   const signup = useCallback(async () => {
@@ -62,5 +91,5 @@ export function useAuth() {
     setAuthState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  return { ...authState, login, logout, signup, refreshToken, clearError };
+  return { ...authState, twoFactorChallenge, login, completeTwoFactorLogin, logout, signup, refreshToken, clearError };
 }

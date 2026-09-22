@@ -13,4 +13,6 @@ export type {
   AuthState,
   LoginResponse,
   AuthError,
+  TwoFactorMethod,
+  TwoFactorChallenge,
 } from './auth.types';

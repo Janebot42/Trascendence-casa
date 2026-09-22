@@ -4,7 +4,7 @@ import React, { useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import EmailLoginForm from './EmailLoginForm';
-import { LoginCredentials } from './auth.types';
+import { LoginCredentials, TwoFactorMethod } from './auth.types';
 import { useAuth } from './useAuth';
 
 /**
@@ -12,8 +12,11 @@ import { useAuth } from './useAuth';
  * Flujo único: username y contraseña.
  */
 export default function LoginPage() {
-  const { login, isLoading, error } = useAuth();
+  const { login, completeTwoFactorLogin, twoFactorChallenge, isLoading, error } = useAuth();
   const router = useRouter();
+  const [method, setMethod] = React.useState<TwoFactorMethod>('totp');
+  const [code, setCode] = React.useState('');
+  const [twoFactorError, setTwoFactorError] = React.useState<string | null>(null);
 
   /**
    * Login username/password.
@@ -26,6 +29,17 @@ export default function LoginPage() {
       // El hook conserva el error para mostrarlo en el formulario.
     }
   }, [login, router]);
+
+  const handleTwoFactorSubmit = useCallback(async (event: React.FormEvent) => {
+    event.preventDefault();
+    setTwoFactorError(null);
+    try {
+      await completeTwoFactorLogin(method, code);
+      router.push('/');
+    } catch (cause) {
+      setTwoFactorError(cause instanceof Error ? cause.message : 'Código 2FA no válido');
+    }
+  }, [code, completeTwoFactorLogin, method, router]);
 
   return (
     <main className="relative min-h-screen bg-surface-bright px-4 py-10 text-on-surface md:px-8 flex items-center justify-center">
@@ -66,6 +80,30 @@ export default function LoginPage() {
               isLoading={isLoading}
               error={error}
             />
+
+            {twoFactorChallenge && (
+              <form onSubmit={handleTwoFactorSubmit} className="mt-6 space-y-4 border-t border-outline-variant pt-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-on-surface">Verificación en dos pasos</h3>
+                  <p className="mt-1 text-sm text-on-surface-variant">Introduce el código de tu aplicación autenticadora o un código de recuperación.</p>
+                </div>
+                <label className="block text-sm font-medium text-on-surface">
+                  Método
+                  <select value={method} onChange={(event) => setMethod(event.target.value as TwoFactorMethod)} className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3">
+                    <option value="totp">Aplicación autenticadora</option>
+                    <option value="recovery_code">Código de recuperación</option>
+                  </select>
+                </label>
+                <label className="block text-sm font-medium text-on-surface">
+                  Código
+                  <input value={code} onChange={(event) => setCode(event.target.value)} required autoComplete="one-time-code" inputMode={method === 'totp' ? 'numeric' : 'text'} className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3" />
+                </label>
+                {(twoFactorError || error) && <p className="rounded-lg border border-error/20 bg-error/10 p-3 text-sm text-error">{twoFactorError ?? error}</p>}
+                <button type="submit" disabled={isLoading} className="flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">
+                  {isLoading ? 'Verificando...' : 'Verificar código'}
+                </button>
+              </form>
+            )}
           </div>
         </section>
       </div>
