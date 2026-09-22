@@ -4,7 +4,7 @@
 
 ## Description
 
-Transcendence is a work-management web application inspired by Trello. The current repository contains a modular backend, a PostgreSQL data model, and a small browser-based development interface used to exercise the API manually.
+Transcendence is a work-management web application inspired by Trello. The repository contains a modular Fastify backend, a PostgreSQL data model, and a Next.js frontend served by the compiled backend.
 
 The implemented domain follows this hierarchy:
 
@@ -14,7 +14,7 @@ Organization -> Board -> List -> Card
 
 Users can authenticate, enable two-factor authentication, create shared organizations and boards, organize work into ordered lists, and create, edit, move, or archive cards.
 
-The application is under active development. The interface in `public/` is a manual API test bench, not the final product frontend. Features described as planned or database-only below must not be presented as completed functionality.
+The application is under active development. Features described as planned or database-only below must not be presented as completed functionality.
 
 ## Current Project Status
 
@@ -37,7 +37,7 @@ The application is under active development. The interface in `public/` is a man
 - PostgreSQL persistence through Prisma.
 - Prisma Migrate history stored under `prisma/migrations`.
 - In-memory repository implementations used when `NODE_ENV=test`.
-- A responsive manual interface for exercising the main API flows.
+- A Next.js frontend compiled into the backend deployment.
 
 ### Present in the database model but not implemented as application features
 
@@ -52,7 +52,7 @@ These entities do not yet have services, HTTP routes, or interface controls.
 
 ### Not implemented yet
 
-- A production frontend framework and final user-facing interface.
+- A complete dashboard and final user-facing workflows.
 - Drag-and-drop interaction.
 - Arbitrary card ordering within a list.
 - Organization, board, and list deletion or archival endpoints.
@@ -89,9 +89,9 @@ src/
 |   |-- two_factor/         TOTP and recovery codes
 |   `-- users/              Current user and administrative user listing
 |-- shared/                 Cryptography, errors, cookies, pagination, rate limits
-`-- ui/                     Routes that serve the manual browser interface
+`-- ui/                     Routes that serve the compiled frontend
 
-public/                     Manual HTML/CSS/JavaScript interface
+frontend/                   Next.js frontend source
 prisma/schema.prisma        Prisma data model
 prisma/migrations/          Prisma migration history
 ```
@@ -116,7 +116,7 @@ Routes validate transport data and require authentication where appropriate. Ser
 | ORM | Prisma 6 | Typed database access and schema relationships |
 | Authentication | Cookies, `scrypt`, TOTP | Stateful sessions and optional second-factor protection |
 | Local infrastructure | Docker Compose | Reproducible PostgreSQL service for development |
-| Manual UI | HTML, CSS, and browser JavaScript | Development-only API testing without a separate client build |
+| Frontend | Next.js, React, TypeScript | User interface compiled and served by Fastify |
 
 ## Database Schema
 
@@ -212,7 +212,7 @@ Do not commit `.env`. It is excluded through `.gitignore`.
    npm start
    ```
 
-6. Open the manual development interface:
+6. Open the application:
 
    ```text
    http://127.0.0.1:3000/
@@ -345,17 +345,11 @@ Collection routes accept:
 
 The rate limiter is process-local and is not currently shared between multiple backend instances. Production deployment also still requires HTTPS termination, centralized secret management, and the security infrastructure selected by the team.
 
-## Manual Development Interface
+## Frontend
 
-The interface served from `/` can currently exercise:
-
-- Registration, login, two-factor login, session lookup, and logout.
-- Reauthentication, password changes, TOTP setup, and TOTP removal.
-- Organization, board, and list creation.
-- Card creation, editing, movement, and archival.
-- A live request log showing method, route, response status, duration, request data, and response data.
-
-It does not expose every backend operation. Membership management and list reordering, for example, currently require direct API requests.
+The Next.js frontend is compiled into `frontend/out/` and served by Fastify from `/`.
+During development it can be run separately on port `3001` with `npm run dev:frontend`,
+while the unified production build is served from port `3000`.
 
 ## Module Status
 
@@ -432,7 +426,7 @@ At the time of this README update:
 
 - TypeScript strict compilation succeeds when run directly.
 - `prisma validate` reports a valid schema.
-- `public/app.js` passes Node's JavaScript syntax check.
+- The unified build generates the Next.js frontend and backend successfully.
 - An in-memory smoke flow covering registration, organization, board, list, card creation, card editing, movement, and archival succeeds.
 
 These statements describe the current checkout and should be updated as the project evolves.
