@@ -24,6 +24,8 @@ export class InMemoryCardsRepository implements CardsRepository {
       description: input.description?.trim() || null,
       position: cards.length ? Math.max(...cards.map((item) => item.position)) + 1000 : 1000,
       dueDate: input.dueDate ?? null,
+      priority: input.priority ?? 'Medium',
+      completed: input.completed ?? false,
       createdById: input.actorUserId,
       createdAt: now,
       updatedAt: now,
@@ -49,6 +51,8 @@ export class InMemoryCardsRepository implements CardsRepository {
     card.title = input.title?.trim() ?? card.title;
     card.description = input.description === undefined ? card.description : input.description?.trim() || null;
     card.dueDate = input.dueDate === undefined ? card.dueDate : input.dueDate;
+    card.priority = input.priority ?? card.priority;
+    card.completed = input.completed ?? card.completed;
     card.updatedAt = new Date();
     return card;
   }

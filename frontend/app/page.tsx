@@ -36,7 +36,8 @@ function toTask(card: Awaited<ReturnType<typeof listCards>>[number], labels: Awa
     id: card.id,
     title: card.title,
     description: card.description ?? undefined,
-    priority: 'Medium',
+    priority: card.priority,
+    completed: card.completed,
     dueDate: card.dueDate ?? undefined,
     labels,
   };
@@ -127,8 +128,8 @@ export default function Home() {
 
   const findTaskColumn = (taskId: string) => workspace?.columns.find((column) => column.tasks.some((task) => task.id === taskId));
 
-  const handleCreateTask = async (columnId: string, title: string) => {
-    await createCard(columnId, { title });
+  const handleCreateTask = async (columnId: string, title: string, priority: TaskItem['priority']) => {
+    await createCard(columnId, { title, priority, completed: false });
     reload();
   };
 
@@ -140,6 +141,8 @@ export default function Home() {
       title: task.title,
       description: task.description ?? null,
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+      priority: task.priority,
+      completed: task.completed ?? false,
     });
     if (sourceColumn.id !== newColumnId) await moveCard(task.id, newColumnId);
     const previousLabelIds = new Set(sourceTask?.labels?.map((label) => label.id) ?? []);
@@ -277,7 +280,7 @@ export default function Home() {
             initialColumns={workspace.columns}
             searchQuery={searchQuery}
             labels={labels}
-            onCreateTask={async (columnId, title) => handleCreateTask(columnId, title)}
+            onCreateTask={async (columnId, title, priority) => handleCreateTask(columnId, title, priority)}
             onSaveTask={handleSaveTask}
             onDeleteTask={async (taskId) => handleDeleteTask(taskId)}
             onCreateList={handleCreateList}

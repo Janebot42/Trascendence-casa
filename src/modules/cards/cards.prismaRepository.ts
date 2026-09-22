@@ -26,6 +26,8 @@ export class PrismaCardsRepository implements CardsRepository {
           description: input.description?.trim() || null,
           position: (last?.position ?? 0) + 1000,
           dueDate: input.dueDate ?? null,
+          priority: input.priority ?? 'Medium',
+          completed: input.completed ?? false,
           createdById: input.actorUserId
         }
       });
@@ -54,6 +56,8 @@ export class PrismaCardsRepository implements CardsRepository {
         title: input.title?.trim(),
         description: input.description === undefined ? undefined : input.description?.trim() || null,
         dueDate: input.dueDate === undefined ? undefined : input.dueDate
+        ,priority: input.priority,
+        completed: input.completed
       }
     });
     return mapCard(row);
@@ -93,12 +97,14 @@ function mapCard(row: {
   description: string | null;
   position: number;
   dueDate: Date | null;
+  priority: string;
+  completed: boolean;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
 }): Card {
-  return row;
+  return { ...row, priority: row.priority as Card['priority'] };
 }
 
 async function withPositionRetry<T>(operation: () => Promise<T>): Promise<T>

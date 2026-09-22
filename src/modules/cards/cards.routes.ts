@@ -12,7 +12,9 @@ const cardParamsSchema = z.object({ cardId: z.string().min(1) });
 const createCardSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().trim().max(5000).optional().nullable(),
-  dueDate: z.coerce.date().nullable().optional()
+  dueDate: z.coerce.date().nullable().optional(),
+  priority: z.enum(['Low', 'Medium', 'Urgent', 'Enhancement']).optional(),
+  completed: z.boolean().optional()
 });
 const updateCardSchema = createCardSchema.partial();
 const moveCardSchema = z.object({ targetListId: z.string().min(1) });

@@ -11,6 +11,8 @@ export type Card = {
   title: string;
   description: string | null;
   dueDate: string | null;
+  priority: 'Low' | 'Medium' | 'Urgent' | 'Enhancement';
+  completed: boolean;
   position: number;
 };
 export type Label = { id: string; boardId: string; name: string; color: string };
@@ -79,14 +81,14 @@ export async function createList(boardId: string, name: string) {
   })).list;
 }
 
-export async function createCard(listId: string, input: { title: string; description?: string | null; dueDate?: string | null }) {
+export async function createCard(listId: string, input: { title: string; description?: string | null; dueDate?: string | null; priority?: Card['priority']; completed?: boolean }) {
   return (await api<{ card: Card }>(`/lists/${listId}/cards`, {
     method: 'POST',
     body: JSON.stringify(input),
   })).card;
 }
 
-export async function updateCard(cardId: string, input: { title?: string; description?: string | null; dueDate?: string | null }) {
+export async function updateCard(cardId: string, input: { title?: string; description?: string | null; dueDate?: string | null; priority?: Card['priority']; completed?: boolean }) {
   return (await api<{ card: Card }>(`/cards/${cardId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),

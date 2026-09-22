@@ -20,8 +20,6 @@ function getBadgeClass(priority: TaskPriority) {
       return 'bg-surface-container-low text-primary';
     case 'Enhancement':
       return 'bg-surface-container-high text-on-surface-variant';
-    case 'Complete':
-      return 'bg-secondary-container text-on-secondary-fixed';
     default:
       return 'bg-surface-container-high text-on-surface';
   }

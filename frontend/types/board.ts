@@ -1,5 +1,5 @@
 // Tipos compartidos por el tablero Kanban.
-export type TaskPriority = 'Low' | 'Medium' | 'Urgent' | 'Enhancement' | 'Complete';
+export type TaskPriority = 'Low' | 'Medium' | 'Urgent' | 'Enhancement';
 
 // Persona que puede asignarse a una tarea.
 export interface User {

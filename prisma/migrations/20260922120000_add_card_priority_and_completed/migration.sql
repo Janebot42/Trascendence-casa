@@ -1,0 +1,3 @@
+ALTER TABLE "cards"
+ADD COLUMN "priority" TEXT NOT NULL DEFAULT 'Medium',
+ADD COLUMN "completed" BOOLEAN NOT NULL DEFAULT false;

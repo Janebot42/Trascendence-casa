@@ -1,3 +1,5 @@
+export type CardPriority = 'Low' | 'Medium' | 'Urgent' | 'Enhancement';
+
 export type Card = {
   id: string;
   listId: string;
@@ -5,6 +7,8 @@ export type Card = {
   description: string | null;
   position: number;
   dueDate: Date | null;
+  priority: CardPriority;
+  completed: boolean;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -17,6 +21,8 @@ export type CreateCardInput = {
   title: string;
   description?: string | null;
   dueDate?: Date | null;
+  priority?: CardPriority;
+  completed?: boolean;
 };
 
 export type UpdateCardInput = {
@@ -25,6 +31,8 @@ export type UpdateCardInput = {
   title?: string;
   description?: string | null;
   dueDate?: Date | null;
+  priority?: CardPriority;
+  completed?: boolean;
 };
 
 export type MoveCardInput = {
