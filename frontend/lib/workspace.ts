@@ -52,6 +52,22 @@ export async function createLabel(boardId: string, input: { name: string; color:
   })).label;
 }
 
+export async function listCardLabels(cardId: string) {
+  return (await api<{ labels: Label[] }>(`/cards/${cardId}/labels`)).labels;
+}
+
+export async function attachLabelToCard(cardId: string, labelId: string) {
+  await api(`/cards/${cardId}/labels/${labelId}`, { method: 'POST' });
+}
+
+export async function detachLabelFromCard(cardId: string, labelId: string) {
+  await api(`/cards/${cardId}/labels/${labelId}`, { method: 'DELETE' });
+}
+
+export async function deleteLabel(labelId: string) {
+  await api(`/labels/${labelId}`, { method: 'DELETE' });
+}
+
 export async function listCards(listId: string) {
   return (await api<{ cards: Card[]; pagination: unknown }>(`/lists/${listId}/cards?limit=100&offset=0`)).cards;
 }

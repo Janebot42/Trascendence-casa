@@ -8,6 +8,13 @@ export interface User {
   avatar: string;
 }
 
+export interface TaskLabel {
+  id: string;
+  boardId: string;
+  name: string;
+  color: string;
+}
+
 
 // Modelo principal de una tarea del tablero.
 export interface TaskItem {
@@ -23,6 +30,7 @@ export interface TaskItem {
   commentsCount?: number;
   hasAttachment?: boolean;
   assignees?: User[];
+  labels?: TaskLabel[];
   completed?: boolean;
   hasWireframePreview?: boolean;
 }

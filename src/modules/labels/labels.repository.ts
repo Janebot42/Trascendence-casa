@@ -6,6 +6,9 @@ export interface LabelsRepository {
   findById(labelId: string): Promise<Label | null>;
   update(input: UpdateLabelInput): Promise<Label>;
   delete(labelId: string): Promise<void>;
+  listForCard(cardId: string): Promise<Label[]>;
+  attachToCard(cardId: string, labelId: string): Promise<void>;
+  detachFromCard(cardId: string, labelId: string): Promise<void>;
 }
 
 export class InMemoryLabelsRepository implements LabelsRepository {
@@ -35,5 +38,22 @@ export class InMemoryLabelsRepository implements LabelsRepository {
 
   async delete(labelId: string): Promise<void> {
     this.labels.delete(labelId);
+  }
+
+  private readonly cardLabels = new Set<string>();
+
+  async listForCard(cardId: string): Promise<Label[]> {
+    return [...this.cardLabels]
+      .filter((key) => key.startsWith(`${cardId}:`))
+      .map((key) => this.labels.get(key.slice(cardId.length + 1)))
+      .filter((label): label is Label => Boolean(label));
+  }
+
+  async attachToCard(cardId: string, labelId: string): Promise<void> {
+    this.cardLabels.add(`${cardId}:${labelId}`);
+  }
+
+  async detachFromCard(cardId: string, labelId: string): Promise<void> {
+    this.cardLabels.delete(`${cardId}:${labelId}`);
   }
 }

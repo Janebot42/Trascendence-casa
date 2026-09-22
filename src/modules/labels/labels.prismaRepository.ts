@@ -34,6 +34,19 @@ export class PrismaLabelsRepository implements LabelsRepository {
   async delete(labelId: string): Promise<void> {
     await this.prisma.label.delete({ where: { id: labelId } });
   }
+
+  async listForCard(cardId: string): Promise<Label[]> {
+    const rows = await this.prisma.cardLabel.findMany({ where: { cardId }, include: { label: true } });
+    return rows.map((row) => mapLabel(row.label));
+  }
+
+  async attachToCard(cardId: string, labelId: string): Promise<void> {
+    await this.prisma.cardLabel.create({ data: { cardId, labelId } });
+  }
+
+  async detachFromCard(cardId: string, labelId: string): Promise<void> {
+    await this.prisma.cardLabel.delete({ where: { cardId_labelId: { cardId, labelId } } });
+  }
 }
 
 function mapLabel(row: { id: string; boardId: string; name: string; color: string }): Label {

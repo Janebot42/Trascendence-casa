@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BoardColumn, TaskItem, TaskPriority, User } from '@/types/board';
+import { BoardColumn, TaskItem, TaskPriority, User, TaskLabel } from '@/types/board';
 import KanbanColumn from '../kanbanColumn';
 import TaskModal from '../taskModal/TaskModal';
 import { useKanbanState } from './useKanbanState';
@@ -11,6 +11,7 @@ import { useKanbanHandlers } from './useKanbanHandlers';
 interface KanbanBoardProps {
   initialColumns: BoardColumn[];
   searchQuery: string;
+  labels?: TaskLabel[];
   users?: User[];
   onCreateTask?: (columnId: string, title: string, priority: TaskPriority) => Promise<void>;
   onSaveTask?: (task: TaskItem, newColumnId: string) => Promise<void>;
@@ -27,6 +28,7 @@ interface KanbanBoardProps {
 export default function KanbanBoard({
   initialColumns,
   searchQuery,
+  labels = [],
   users = [],
   onCreateTask,
   onSaveTask,
@@ -100,6 +102,7 @@ export default function KanbanBoard({
           currentColumnId={selectedColumnId}
           columns={columns}
           users={users}
+          labels={labels}
           onClose={() => setSelectedTask(null)}
           onSave={(task, columnId) => {
             handleSaveTask(task, columnId);

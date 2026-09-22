@@ -177,6 +177,8 @@ export default function TaskCard({ task, isDragging, onClick }: TaskCardProps) {
 
       <TaskCardTitle title={task.title} completed={task.completed} />
 
+      {task.labels && task.labels.length > 0 && <div className="mb-3 flex flex-wrap gap-1.5">{task.labels.map((label) => <span key={label.id} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: `${label.color}20`, color: label.color }}><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: label.color }} />{label.name}</span>)}</div>}
+
       {task.hasWireframePreview && <TaskWireframePreview />}
 
       <TaskCardMeta task={task} />

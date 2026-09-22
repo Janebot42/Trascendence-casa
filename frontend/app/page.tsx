@@ -16,8 +16,12 @@ import {
   createLabel,
   createOrganization,
   createList,
+  attachLabelToCard,
   listBoards,
   listCards,
+  listCardLabels,
+  deleteLabel,
+  detachLabelFromCard,
   listLabels,
   listLists,
   listOrganizations,
@@ -27,13 +31,14 @@ import {
 
 type LoadedWorkspace = { board: Board; columns: BoardColumn[] };
 
-function toTask(card: Awaited<ReturnType<typeof listCards>>[number]): TaskItem {
+function toTask(card: Awaited<ReturnType<typeof listCards>>[number], labels: Awaited<ReturnType<typeof listLabels>>): TaskItem {
   return {
     id: card.id,
     title: card.title,
     description: card.description ?? undefined,
     priority: 'Medium',
     dueDate: card.dueDate ?? undefined,
+    labels,
   };
 }
 
@@ -103,7 +108,7 @@ export default function Home() {
         const columns = await Promise.all(lists.map(async (list) => ({
           id: list.id,
           title: list.name,
-          tasks: (await listCards(list.id)).map(toTask),
+          tasks: await Promise.all((await listCards(list.id)).map(async (card) => toTask(card, await listCardLabels(card.id)))),
         })));
 
         if (active) {
@@ -130,12 +135,19 @@ export default function Home() {
   const handleSaveTask = async (task: TaskItem, newColumnId: string) => {
     const sourceColumn = findTaskColumn(task.id);
     if (!sourceColumn) return;
+    const sourceTask = sourceColumn.tasks.find((candidate) => candidate.id === task.id);
     await updateCard(task.id, {
       title: task.title,
       description: task.description ?? null,
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
     });
     if (sourceColumn.id !== newColumnId) await moveCard(task.id, newColumnId);
+    const previousLabelIds = new Set(sourceTask?.labels?.map((label) => label.id) ?? []);
+    const nextLabelIds = new Set(task.labels?.map((label) => label.id) ?? []);
+    await Promise.all([
+      ...(task.labels ?? []).filter((label) => !previousLabelIds.has(label.id)).map((label) => attachLabelToCard(task.id, label.id)),
+      ...(sourceTask?.labels ?? []).filter((label) => !nextLabelIds.has(label.id)).map((label) => detachLabelFromCard(task.id, label.id)),
+    ]);
     reload();
   };
 
@@ -182,6 +194,16 @@ export default function Home() {
       setError(cause instanceof Error ? cause.message : 'No se pudo crear la etiqueta');
     } finally {
       setIsCreatingLabel(false);
+    }
+  };
+
+  const handleDeleteLabel = async (labelId: string) => {
+    if (!window.confirm('¿Quieres borrar esta etiqueta? También se quitará de las tarjetas que la usen.')) return;
+    try {
+      await deleteLabel(labelId);
+      reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo borrar la etiqueta');
     }
   };
 
@@ -243,6 +265,7 @@ export default function Home() {
           }}
           onCreateList={() => setIsCreateListOpen(true)}
           onCreateLabel={() => setIsCreateLabelOpen(true)}
+          onDeleteLabel={handleDeleteLabel}
           disabled={isLoading}
         />
         <BoardHeader title={workspace?.board.name ?? 'Tablero'} />
@@ -253,6 +276,7 @@ export default function Home() {
             key={`${workspace.board.id}-${refreshKey}`}
             initialColumns={workspace.columns}
             searchQuery={searchQuery}
+            labels={labels}
             onCreateTask={async (columnId, title) => handleCreateTask(columnId, title)}
             onSaveTask={handleSaveTask}
             onDeleteTask={async (taskId) => handleDeleteTask(taskId)}

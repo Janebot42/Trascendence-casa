@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BoardColumn, TaskItem, TaskPriority } from '@/types/board';
+import { BoardColumn, TaskItem, TaskLabel, TaskPriority } from '@/types/board';
 import { User } from '@/types/board';
 import TaskTitleField from './TaskTitleField';
 import TaskDescriptionField from './TaskDescriptionField';
@@ -24,6 +24,9 @@ interface TaskModalFormProps {
   currentColumnId: string;
   columns: BoardColumn[];
   users: User[];
+  labels: TaskLabel[];
+  selectedLabels: TaskLabel[];
+  onToggleLabel: (label: TaskLabel) => void;
   formData: TaskFormData;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
@@ -46,6 +49,9 @@ export default function TaskModalForm({
   currentColumnId,
   columns,
   users,
+  labels,
+  selectedLabels,
+  onToggleLabel,
   formData,
   onTitleChange,
   onDescriptionChange,
@@ -75,6 +81,17 @@ export default function TaskModalForm({
       />
 
       <TaskDescriptionField value={formData.description} onChange={onDescriptionChange} />
+
+      <div className="space-y-2">
+        <p className="text-[12px] font-semibold uppercase tracking-wide text-on-surface-variant">Etiquetas</p>
+        <div className="flex flex-wrap gap-2 rounded-lg border border-outline-variant bg-surface-container-low p-3">
+          {labels.length === 0 && <span className="text-sm text-on-surface-variant">Este tablero no tiene etiquetas.</span>}
+          {labels.map((label) => {
+            const selected = selectedLabels.some((item) => item.id === label.id);
+            return <button type="button" key={label.id} onClick={() => onToggleLabel(label)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-white text-on-surface-variant'}`}><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: label.color }} />{label.name}{selected && <span className="material-symbols-outlined text-[14px]">check</span>}</button>;
+          })}
+        </div>
+      </div>
 
       <AssigneeSelector
         users={users}

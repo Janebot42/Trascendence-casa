@@ -126,7 +126,7 @@ export async function buildApp()
   const boardsService = new BoardsService(boardsRepository, organizationsService);
   const listsService = new ListsService(listsRepository, boardsService);
   const cardsService = new CardsService(cardsRepository, listsService);
-  const labelsService = new LabelsService(labelsRepository, boardsService);
+  const labelsService = new LabelsService(labelsRepository, boardsService, cardsService, listsService);
 
   if (env.NODE_ENV === 'test') 
   {

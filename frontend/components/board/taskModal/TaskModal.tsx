@@ -7,7 +7,7 @@ import TaskModalForm from './TaskModalForm';
 import { useTaskModalState } from './useTaskModalState';
 import { useTaskModalSubmit } from './useTaskModalSubmit';
 import { useModalKeyboard } from './useModalKeyboard';
-import { User } from '@/types/board';
+import { TaskLabel, User } from '@/types/board';
 
 // Props del modal de edición y detalle de tarea.
 interface TaskModalProps {
@@ -15,6 +15,7 @@ interface TaskModalProps {
   currentColumnId: string;
   columns: BoardColumn[];
   users: User[];
+  labels: TaskLabel[];
   onClose: () => void;
   onSave: (updatedTask: TaskItem, newColumnId: string) => void;
   onDelete: (taskId: string, columnId: string) => void;
@@ -30,15 +31,25 @@ export default function TaskModal({
   currentColumnId,
   columns,
   users,
+  labels,
   onClose,
   onSave,
   onDelete,
 }: TaskModalProps) {
   // Estado del formulario
   const { formData, updateField } = useTaskModalState(task, currentColumnId);
+  const [selectedLabels, setSelectedLabels] = React.useState<TaskLabel[]>(task.labels ?? []);
+
+  React.useEffect(() => {
+    setSelectedLabels(task.labels ?? []);
+  }, [task]);
+
+  const toggleLabel = (label: TaskLabel) => {
+    setSelectedLabels((current) => current.some((item) => item.id === label.id) ? current.filter((item) => item.id !== label.id) : [...current, label]);
+  };
 
   // Lógica de envío del formulario
-  const { handleSubmit } = useTaskModalSubmit(task, formData, users, onSave, onClose);
+  const { handleSubmit } = useTaskModalSubmit(task, formData, users, (updatedTask, columnId) => onSave({ ...updatedTask, labels: selectedLabels }, columnId), onClose);
 
   // Atajos de teclado (ESC para cerrar)
   useModalKeyboard(onClose);
@@ -55,6 +66,9 @@ export default function TaskModal({
           currentColumnId={currentColumnId}
           columns={columns}
           users={users}
+          labels={labels}
+          selectedLabels={selectedLabels}
+          onToggleLabel={toggleLabel}
           formData={formData}
           onTitleChange={updateField.setTitle}
           onDescriptionChange={updateField.setDescription}

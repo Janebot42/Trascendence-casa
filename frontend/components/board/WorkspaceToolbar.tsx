@@ -10,6 +10,7 @@ type WorkspaceToolbarProps = {
   onCreateBoard: () => void;
   onCreateList: () => void;
   onCreateLabel: () => void;
+  onDeleteLabel: (labelId: string) => void;
   disabled?: boolean;
 };
 
@@ -21,6 +22,7 @@ export default function WorkspaceToolbar({
   onCreateBoard,
   onCreateList,
   onCreateLabel,
+  onDeleteLabel,
   disabled,
 }: WorkspaceToolbarProps) {
   return (
@@ -35,7 +37,7 @@ export default function WorkspaceToolbar({
         </div>
         <div className="flex flex-wrap items-center gap-1.5" aria-label="Etiquetas del tablero">
           {labels.length === 0 && <span className="text-xs text-on-surface-variant">Sin etiquetas</span>}
-          {labels.map((label) => <span key={label.id} title={label.name} className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface-bright px-2.5 py-1 text-xs font-medium text-on-surface"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: label.color }} />{label.name}</span>)}
+          {labels.map((label) => <span key={label.id} title={label.name} className="inline-flex items-center gap-1.5 rounded-full border border-outline-variant bg-surface-bright px-2.5 py-1 text-xs font-medium text-on-surface"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: label.color }} />{label.name}<button type="button" onClick={() => onDeleteLabel(label.id)} className="ml-0.5 rounded-full text-on-surface-variant hover:text-error" aria-label={`Borrar etiqueta ${label.name}`}><span className="material-symbols-outlined text-[14px]">close</span></button></span>)}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
