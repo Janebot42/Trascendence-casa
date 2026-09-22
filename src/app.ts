@@ -48,6 +48,10 @@ import { InMemoryCardsRepository } from './modules/cards/cards.repository.js';
 import { PrismaCardsRepository } from './modules/cards/cards.prismaRepository.js';
 import { CardsService } from './modules/cards/cards.service.js';
 import { registerCardRoutes } from './modules/cards/cards.routes.js';
+import { InMemoryLabelsRepository } from './modules/labels/labels.repository.js';
+import { PrismaLabelsRepository } from './modules/labels/labels.prismaRepository.js';
+import { LabelsService } from './modules/labels/labels.service.js';
+import { registerLabelRoutes } from './modules/labels/labels.routes.js';
 
 export async function buildApp() 
 {
@@ -100,6 +104,7 @@ export async function buildApp()
   const boardsRepository = prisma ? new PrismaBoardsRepository(prisma) : new InMemoryBoardsRepository();
   const listsRepository = prisma ? new PrismaListsRepository(prisma) : new InMemoryListsRepository();
   const cardsRepository = prisma ? new PrismaCardsRepository(prisma) : new InMemoryCardsRepository();
+  const labelsRepository = prisma ? new PrismaLabelsRepository(prisma) : new InMemoryLabelsRepository();
   const sessionsService = new SessionsService(sessionsRepository, usersService);
   const totpService = new TotpService(new SecretBox(securityConfig.totpEncryptionKeyBase64));
   const recoveryCodesService = new RecoveryCodesService(twoFactorRepository);
@@ -121,6 +126,7 @@ export async function buildApp()
   const boardsService = new BoardsService(boardsRepository, organizationsService);
   const listsService = new ListsService(listsRepository, boardsService);
   const cardsService = new CardsService(cardsRepository, listsService);
+  const labelsService = new LabelsService(labelsRepository, boardsService);
 
   if (env.NODE_ENV === 'test') 
   {
@@ -156,6 +162,7 @@ export async function buildApp()
   await registerBoardRoutes(app, boardsService, sessionsService);
   await registerListRoutes(app, listsService, sessionsService);
   await registerCardRoutes(app, cardsService, sessionsService);
+  await registerLabelRoutes(app, labelsService, sessionsService);
   await registerTwoFactorRoutes(app, twoFactorService, sessionsService);
   await registerUserRoutes(app, sessionsService, usersService);
   await registerUiRoutes(app);

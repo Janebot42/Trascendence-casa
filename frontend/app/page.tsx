@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import BoardHeader from '@/components/board/BoardHeader';
+import WorkspaceToolbar from '@/components/board/WorkspaceToolbar';
 import KanbanBoard from '@/components/board/kanbanBoard/KanbanBoard';
 import { ProtectedRoute } from '@/components/auth';
 import { BoardColumn, TaskItem } from '@/types/board';
@@ -12,10 +13,12 @@ import {
   Board,
   createBoard,
   createCard,
+  createLabel,
   createOrganization,
   createList,
   listBoards,
   listCards,
+  listLabels,
   listLists,
   listOrganizations,
   moveCard,
@@ -38,6 +41,9 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [workspace, setWorkspace] = useState<LoadedWorkspace | null>(null);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [selectedBoardId, setSelectedBoardId] = useState('');
+  const [labels, setLabels] = useState<Awaited<ReturnType<typeof listLabels>>>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +53,13 @@ export default function Home() {
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [newOrganizationName, setNewOrganizationName] = useState('Mi espacio de trabajo');
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
+  const [isCreateListOpen, setIsCreateListOpen] = useState(false);
+  const [newListName, setNewListName] = useState('');
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [isCreateLabelOpen, setIsCreateLabelOpen] = useState(false);
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState('#6750A4');
+  const [isCreatingLabel, setIsCreatingLabel] = useState(false);
 
   const reload = useCallback(() => setRefreshKey((value) => value + 1), []);
 
@@ -62,26 +75,41 @@ export default function Home() {
         const organizations = await listOrganizations();
         const organization = organizations[0];
         if (!organization) {
-          if (active) setWorkspace(null);
+          if (active) {
+            setOrganizationId(null);
+            setBoards([]);
+            setSelectedBoardId('');
+            setLabels([]);
+            setWorkspace(null);
+          }
           return;
         }
         if (active) setOrganizationId(organization.id);
 
-        const boards = await listBoards(organization.id);
-        const board = boards[0];
+        const loadedBoards = await listBoards(organization.id);
+        if (active) setBoards(loadedBoards);
+        const board = loadedBoards.find((candidate) => candidate.id === selectedBoardId) ?? loadedBoards[0];
         if (!board) {
-          if (active) setWorkspace({ board: { id: '', organizationId: organization.id, name: 'Sin tablero', description: null }, columns: [] });
+          if (active) {
+            setSelectedBoardId('');
+            setLabels([]);
+            setWorkspace({ board: { id: '', organizationId: organization.id, name: 'Sin tablero', description: null }, columns: [] });
+          }
           return;
         }
+        if (active && selectedBoardId !== board.id) setSelectedBoardId(board.id);
 
-        const lists = await listLists(board.id);
+        const [lists, boardLabels] = await Promise.all([listLists(board.id), listLabels(board.id)]);
         const columns = await Promise.all(lists.map(async (list) => ({
           id: list.id,
           title: list.name,
           tasks: (await listCards(list.id)).map(toTask),
         })));
 
-        if (active) setWorkspace({ board, columns });
+        if (active) {
+          setLabels(boardLabels);
+          setWorkspace({ board, columns });
+        }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : 'No se pudo cargar el tablero');
       } finally {
@@ -90,7 +118,7 @@ export default function Home() {
     })();
 
     return () => { active = false; };
-  }, [refreshKey]);
+  }, [refreshKey, selectedBoardId]);
 
   const findTaskColumn = (taskId: string) => workspace?.columns.find((column) => column.tasks.some((task) => task.id === taskId));
 
@@ -120,6 +148,41 @@ export default function Home() {
     if (!workspace?.board.id) return;
     await createList(workspace.board.id, title);
     reload();
+  };
+
+  const handleCreateListFromToolbar = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!workspace?.board.id || newListName.trim().length < 1) return;
+    setIsCreatingList(true);
+    setError(null);
+    try {
+      await createList(workspace.board.id, newListName.trim());
+      setNewListName('');
+      setIsCreateListOpen(false);
+      reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo crear la lista');
+    } finally {
+      setIsCreatingList(false);
+    }
+  };
+
+  const handleCreateLabel = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!workspace?.board.id || newLabelName.trim().length < 1) return;
+    setIsCreatingLabel(true);
+    setError(null);
+    try {
+      await createLabel(workspace.board.id, { name: newLabelName.trim(), color: newLabelColor });
+      setNewLabelName('');
+      setNewLabelColor('#6750A4');
+      setIsCreateLabelOpen(false);
+      reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo crear la etiqueta');
+    } finally {
+      setIsCreatingLabel(false);
+    }
   };
 
   const handleCreateBoard = async (event: React.FormEvent) => {
@@ -166,6 +229,22 @@ export default function Home() {
           onSearchChange={setSearchQuery}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         />
+        <WorkspaceToolbar
+          boards={boards}
+          selectedBoardId={selectedBoardId}
+          labels={labels}
+          onBoardChange={(boardId) => {
+            setSelectedBoardId(boardId);
+            setRefreshKey((value) => value + 1);
+          }}
+          onCreateBoard={() => {
+            setError(null);
+            setIsCreateBoardOpen(true);
+          }}
+          onCreateList={() => setIsCreateListOpen(true)}
+          onCreateLabel={() => setIsCreateLabelOpen(true)}
+          disabled={isLoading}
+        />
         <BoardHeader title={workspace?.board.name ?? 'Tablero'} />
         {isLoading && <div className="p-6 text-on-surface-variant">Cargando tablero...</div>}
         {!isLoading && error && <div className="p-6 text-error">{error}</div>}
@@ -208,6 +287,27 @@ export default function Home() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {isCreateListOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="create-list-title">
+          <form onSubmit={handleCreateListFromToolbar} className="w-full max-w-md rounded-2xl border border-outline-variant bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between gap-4"><h2 id="create-list-title" className="text-xl font-semibold">Crear lista</h2><button type="button" onClick={() => setIsCreateListOpen(false)} aria-label="Cerrar" className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">close</span></button></div>
+            <label className="mt-6 block text-sm font-medium">Nombre<input value={newListName} onChange={(event) => setNewListName(event.target.value)} required maxLength={80} autoFocus disabled={isCreatingList} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsCreateListOpen(false)} className="rounded-xl border border-outline-variant px-4 py-3 font-semibold text-on-surface-variant">Cancelar</button><button type="submit" disabled={isCreatingList} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{isCreatingList ? 'Creando...' : 'Crear lista'}</button></div>
+          </form>
+        </div>
+      )}
+
+      {isCreateLabelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="create-label-title">
+          <form onSubmit={handleCreateLabel} className="w-full max-w-md rounded-2xl border border-outline-variant bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between gap-4"><h2 id="create-label-title" className="text-xl font-semibold">Crear etiqueta</h2><button type="button" onClick={() => setIsCreateLabelOpen(false)} aria-label="Cerrar" className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">close</span></button></div>
+            <label className="mt-6 block text-sm font-medium">Nombre<input value={newLabelName} onChange={(event) => setNewLabelName(event.target.value)} required maxLength={40} autoFocus disabled={isCreatingLabel} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>
+            <label className="mt-4 flex items-center justify-between text-sm font-medium">Color<input type="color" value={newLabelColor} onChange={(event) => setNewLabelColor(event.target.value)} disabled={isCreatingLabel} className="h-10 w-16 cursor-pointer rounded border border-outline-variant bg-white p-1" /></label>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsCreateLabelOpen(false)} className="rounded-xl border border-outline-variant px-4 py-3 font-semibold text-on-surface-variant">Cancelar</button><button type="submit" disabled={isCreatingLabel} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:opacity-50">{isCreatingLabel ? 'Creando...' : 'Crear etiqueta'}</button></div>
+          </form>
         </div>
       )}
     </ProtectedRoute>

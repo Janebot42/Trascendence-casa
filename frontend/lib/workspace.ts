@@ -13,6 +13,7 @@ export type Card = {
   dueDate: string | null;
   position: number;
 };
+export type Label = { id: string; boardId: string; name: string; color: string };
 
 export async function listOrganizations() {
   return (await api<{ organizations: Organization[]; pagination: unknown }>('/organizations?limit=100&offset=0')).organizations;
@@ -38,6 +39,17 @@ export async function createBoard(organizationId: string, input: { name: string;
 
 export async function listLists(boardId: string) {
   return (await api<{ lists: BoardList[]; pagination: unknown }>(`/boards/${boardId}/lists?limit=100&offset=0`)).lists;
+}
+
+export async function listLabels(boardId: string) {
+  return (await api<{ labels: Label[] }>(`/boards/${boardId}/labels`)).labels;
+}
+
+export async function createLabel(boardId: string, input: { name: string; color: string }) {
+  return (await api<{ label: Label }>(`/boards/${boardId}/labels`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })).label;
 }
 
 export async function listCards(listId: string) {
