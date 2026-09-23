@@ -351,6 +351,19 @@ The Next.js frontend is compiled into `frontend/out/` and served by Fastify from
 During development it can be run separately on port `3001` with `npm run dev:frontend`,
 while the unified production build is served from port `3000`.
 
+The repository intentionally keeps the frontend's `package.json` and lockfile inside
+`frontend/` because Next.js has its own dependency graph. The root scripts orchestrate
+both projects, so Git and the production runtime remain unified without mixing backend
+and frontend dependencies.
+
+Typical commands:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
 ## Module Status
 
 This section records implementation status and does not claim final evaluation points. A module only counts when every requirement in the subject can be demonstrated.
@@ -363,7 +376,7 @@ This section records implementation status and does not claim final evaluation p
 | Organization system (Major) | In progress; deletion and member removal are missing |
 | Standard user management (Major) | In progress; profiles, avatars, friends, and online status are missing |
 | Advanced permissions (Major) | In progress; domain roles exist, but full user CRUD and required role views do not |
-| Frontend framework | Not implemented |
+| Frontend framework | Implemented with Next.js |
 | Real-time features and collaboration | Not implemented |
 | Accessibility WCAG 2.1 AA | Not verified or complete |
 | Internationalization | Not implemented |
@@ -381,7 +394,7 @@ Before final evaluation, the team must address at least the following subject re
 - Docker Compose does not yet start the complete application with one command.
 - Browser-to-backend communication is not yet configured for HTTPS.
 - Privacy Policy and Terms of Service pages are missing.
-- The final frontend and its client-side validation are not implemented.
+- The dashboard route still contains some mock presentation components and needs to be connected to the live workspace data.
 - Real multi-user behavior has no automated concurrency or end-to-end test coverage.
 - The README still needs complete team roles, project-management details, individual contributions, and an accurate record of AI usage.
 
