@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { randomToken } from '../../shared/crypto/randomToken.js';
 import { conflict } from '../../shared/errors/httpErrors.js';
 import type { OrganizationsRepository } from './organizations.repository.js';
-import { normalizeSlug } from './organizations.repository.js';
+import { createOrganizationSlug, normalizeSlug } from './organizations.repository.js';
 import type { CreateOrganizationInput, Organization, OrganizationMember, OrganizationWithRole, SetOrganizationMemberInput, UpdateOrganizationInput } from './organizations.types.js';
 import type { Page, PaginationInput } from '../../shared/pagination.js';
 
@@ -13,7 +13,7 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository
   async createWithOwner(input: CreateOrganizationInput): Promise<OrganizationWithRole> 
   {
     const id = randomToken(16);
-    const slug = normalizeSlug(input.slug ?? input.name);
+    const slug = createOrganizationSlug(input.slug ?? input.name, input.slug === undefined);
     try {
       const organization = await this.prisma.$transaction(async (tx) => {
         const created = await tx.organization.create({
