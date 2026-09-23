@@ -20,7 +20,7 @@ export class InMemoryListsRepository implements ListsRepository
   async create(input: CreateListInput): Promise<BoardList> 
   {
     const now = new Date();
-    const currentLists = this.activeLists(input.boardId);
+    const currentLists = this.allLists(input.boardId);
     const nextPosition = currentLists.length ? Math.max(...currentLists.map((list) => list.position)) + 1000 : 1000;
     const list: BoardList = {
       id: randomToken(16),
@@ -80,9 +80,14 @@ export class InMemoryListsRepository implements ListsRepository
 
   private activeLists(boardId: string): BoardList[]
   {
-    return [...this.lists.values()]
-      .filter((list) => list.boardId === boardId && !list.archivedAt)
+    return this.allLists(boardId)
+      .filter((list) => !list.archivedAt)
       .sort((left, right) => left.position - right.position);
+  }
+
+  private allLists(boardId: string): BoardList[]
+  {
+    return [...this.lists.values()].filter((list) => list.boardId === boardId);
   }
 }
 

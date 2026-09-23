@@ -16,7 +16,7 @@ export class InMemoryCardsRepository implements CardsRepository {
 
   async create(input: CreateCardInput): Promise<Card> {
     const now = new Date();
-    const cards = this.activeCards(input.listId);
+    const cards = this.allCards(input.listId);
     const card: Card = {
       id: randomToken(16),
       listId: input.listId,
@@ -60,7 +60,7 @@ export class InMemoryCardsRepository implements CardsRepository {
   async move(input: MoveCardInput): Promise<Card> {
     const card = this.cards.get(input.cardId);
     if (!card || card.archivedAt) throw new Error('Card not found');
-    const targetCards = this.activeCards(input.targetListId);
+    const targetCards = this.allCards(input.targetListId).filter((item) => item.id !== input.cardId);
     card.listId = input.targetListId;
     card.position = targetCards.length ? Math.max(...targetCards.map((item) => item.position)) + 1000 : 1000;
     card.updatedAt = new Date();
@@ -75,8 +75,12 @@ export class InMemoryCardsRepository implements CardsRepository {
   }
 
   private activeCards(listId: string): Card[] {
-    return [...this.cards.values()]
-      .filter((card) => card.listId === listId && !card.archivedAt)
+    return this.allCards(listId)
+      .filter((card) => !card.archivedAt)
       .sort((left, right) => left.position - right.position);
+  }
+
+  private allCards(listId: string): Card[] {
+    return [...this.cards.values()].filter((card) => card.listId === listId);
   }
 }
