@@ -19,6 +19,7 @@ export interface OrganizationsRepository
   findMember(organizationId: string, userId: string): Promise<OrganizationMember | null>;
   upsertMember(input: SetOrganizationMemberInput): Promise<OrganizationMember>;
   update(input: UpdateOrganizationInput): Promise<Organization>;
+  archive(organizationId: string): Promise<void>;
 }
 
 export class InMemoryOrganizationsRepository implements OrganizationsRepository 
@@ -102,7 +103,7 @@ export class InMemoryOrganizationsRepository implements OrganizationsRepository
   async update(input: UpdateOrganizationInput): Promise<Organization> 
   {
     const organization = this.organizations.get(input.organizationId);
-    if (!organization) 
+    if (!organization || organization.archivedAt)
       throw new Error('Organization not found');
 
     const nextSlug = input.slug ? normalizeSlug(input.slug) : organization.slug;
@@ -118,6 +119,15 @@ export class InMemoryOrganizationsRepository implements OrganizationsRepository
     organization.slug = nextSlug;
     organization.updatedAt = new Date();
     return organization;
+  }
+
+  async archive(organizationId: string): Promise<void>
+  {
+    const organization = this.organizations.get(organizationId);
+    if (!organization || organization.archivedAt)
+      throw new Error('Organization not found');
+    organization.archivedAt = new Date();
+    organization.updatedAt = new Date();
   }
 }
 

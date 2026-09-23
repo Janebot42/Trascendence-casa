@@ -106,14 +106,14 @@ export const initialColumns: BoardColumn[] = [
       {
         id: 't-7',
         title: 'Project Kickoff Meeting',
-        priority: 'Complete',
+        priority: 'Medium',
         dueDate: 'Oct 1',
         completed: true,
       },
       {
         id: 't-8',
         title: 'Initial stakeholder interviews',
-        priority: 'Complete',
+        priority: 'Medium',
         checklist: { completed: 3, total: 3 },
         assignees: [mockUsers[0]],
         completed: true,

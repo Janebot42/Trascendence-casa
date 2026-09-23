@@ -28,6 +28,17 @@ export async function createOrganization(input: { name: string }) {
   })).organization;
 }
 
+export async function updateOrganization(organizationId: string, input: { name?: string; slug?: string }) {
+  return (await api<{ organization: Organization }>(`/organizations/${organizationId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })).organization;
+}
+
+export async function archiveOrganization(organizationId: string) {
+  await api(`/organizations/${organizationId}`, { method: 'DELETE' });
+}
+
 export async function listBoards(organizationId: string) {
   return (await api<{ boards: Board[]; pagination: unknown }>(`/organizations/${organizationId}/boards?limit=100&offset=0`)).boards;
 }

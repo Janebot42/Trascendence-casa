@@ -87,6 +87,11 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository
       throw error;
     }
   }
+
+  async archive(organizationId: string): Promise<void>
+  {
+    await this.prisma.organization.update({ where: { id: organizationId }, data: { archivedAt: new Date() } });
+  }
 }
 
 function mapOrganization(row: { id: string; name: string; slug: string; createdByUserId: string; createdAt: Date; updatedAt: Date; archivedAt: Date | null }): Organization 

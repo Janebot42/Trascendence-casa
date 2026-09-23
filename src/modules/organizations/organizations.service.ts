@@ -45,6 +45,14 @@ export class OrganizationsService
     return this.organizationsRepository.update(input);
   }
 
+  async archiveOrganization(organizationId: string, actorUserId: string): Promise<void>
+  {
+    const organization = await this.getOrganizationForUser(organizationId, actorUserId);
+    if (organization.role !== 'owner')
+      throw forbidden('Only an organization owner can archive the organization', 'ORGANIZATION_OWNER_REQUIRED');
+    await this.organizationsRepository.archive(organization.id);
+  }
+
   async setOrganizationMemberRole(input: {
     organizationId: string;
     actorUserId: string;

@@ -17,6 +17,8 @@ import {
   createCard,
   createLabel,
   createOrganization,
+  updateOrganization,
+  archiveOrganization,
   createList,
   attachLabelToCard,
   listBoards,
@@ -69,6 +71,11 @@ export default function Home() {
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [newOrganizationName, setNewOrganizationName] = useState('Mi espacio de trabajo');
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [isEditOrganizationOpen, setIsEditOrganizationOpen] = useState(false);
+  const [editOrganizationName, setEditOrganizationName] = useState('');
+  const [editOrganizationSlug, setEditOrganizationSlug] = useState('');
+  const [isSavingOrganization, setIsSavingOrganization] = useState(false);
   const [isCreateListOpen, setIsCreateListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [isCreatingList, setIsCreatingList] = useState(false);
@@ -272,6 +279,37 @@ export default function Home() {
     }
   };
 
+  const handleCreateOrganization = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (newOrganizationName.trim().length < 2) return;
+    setIsSavingOrganization(true); setError(null);
+    try { const organization = await createOrganization({ name: newOrganizationName.trim() }); setNewOrganizationName('Mi espacio de trabajo'); setIsCreateOrganizationOpen(false); setOrganizationId(organization.id); setSelectedBoardId(''); reload(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo crear la organización'); }
+    finally { setIsSavingOrganization(false); }
+  };
+
+  const openEditOrganization = () => {
+    const organization = organizations.find((candidate) => candidate.id === organizationId);
+    if (!organization) return;
+    setEditOrganizationName(organization.name); setEditOrganizationSlug(organization.slug); setIsEditOrganizationOpen(true);
+  };
+
+  const handleEditOrganization = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!organizationId || editOrganizationName.trim().length < 2 || editOrganizationSlug.trim().length < 2) return;
+    setIsSavingOrganization(true); setError(null);
+    try { await updateOrganization(organizationId, { name: editOrganizationName.trim(), slug: editOrganizationSlug.trim() }); setIsEditOrganizationOpen(false); reload(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo editar la organización'); }
+    finally { setIsSavingOrganization(false); }
+  };
+
+  const handleDeleteOrganization = async () => {
+    const organization = organizations.find((candidate) => candidate.id === organizationId);
+    if (!organization || organization.role !== 'owner' || !window.confirm('¿Quieres borrar esta organización y sus tableros?')) return;
+    try { await archiveOrganization(organization.id); setOrganizationId(null); setSelectedBoardId(''); reload(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo borrar la organización'); }
+  };
+
   const handleCreateBoard = async (event: React.FormEvent) => {
     event.preventDefault();
     if (newBoardName.trim().length < 2 || (!organizationId && newOrganizationName.trim().length < 2)) return;
@@ -331,6 +369,9 @@ export default function Home() {
             setSelectedBoardId('');
             setRefreshKey((value) => value + 1);
           }}
+          onCreateOrganization={() => { setError(null); setIsCreateOrganizationOpen(true); }}
+          onEditOrganization={openEditOrganization}
+          onDeleteOrganization={handleDeleteOrganization}
           onCreateBoard={() => {
             setError(null);
             setIsCreateBoardOpen(true);
@@ -362,6 +403,27 @@ export default function Home() {
         {!isLoading && !error && !workspace && <div className="p-6 text-on-surface-variant">No tienes ninguna organización todavía.</div>}
         {!isLoading && !error && workspace && workspace.columns.length === 0 && <div className="p-6 text-on-surface-variant">Este tablero todavía no tiene listas.</div>}
       </main>
+
+      {isCreateOrganizationOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <form onSubmit={handleCreateOrganization} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-semibold">Crear organización</h2>
+            <label className="mt-6 block text-sm font-medium">Nombre<input value={newOrganizationName} onChange={(event) => setNewOrganizationName(event.target.value)} required minLength={2} maxLength={80} autoFocus disabled={isSavingOrganization} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsCreateOrganizationOpen(false)} className="rounded-xl border px-4 py-3">Cancelar</button><button type="submit" disabled={isSavingOrganization} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white">Crear organización</button></div>
+          </form>
+        </div>
+      )}
+
+      {isEditOrganizationOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <form onSubmit={handleEditOrganization} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-xl font-semibold">Editar organización</h2>
+            <label className="mt-6 block text-sm font-medium">Nombre<input value={editOrganizationName} onChange={(event) => setEditOrganizationName(event.target.value)} required minLength={2} maxLength={80} autoFocus disabled={isSavingOrganization} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
+            <label className="mt-4 block text-sm font-medium">Slug<input value={editOrganizationSlug} onChange={(event) => setEditOrganizationSlug(event.target.value)} required minLength={2} maxLength={80} disabled={isSavingOrganization} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsEditOrganizationOpen(false)} className="rounded-xl border px-4 py-3">Cancelar</button><button type="submit" disabled={isSavingOrganization} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white">Guardar cambios</button></div>
+          </form>
+        </div>
+      )}
 
       {isCreateBoardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="create-board-title">
