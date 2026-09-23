@@ -29,7 +29,7 @@ export class InMemoryOrganizationsRepository implements OrganizationsRepository
 
   async createWithOwner(input: CreateOrganizationInput): Promise<OrganizationWithRole> 
   {
-    const slug = createOrganizationSlug(input.slug ?? input.name, input.slug === undefined);
+    const slug = createOrganizationSlug(input.slug ?? input.name);
     for (const organization of this.organizations.values())
     {
       if (organization.slug === slug) 
@@ -131,10 +131,10 @@ export class InMemoryOrganizationsRepository implements OrganizationsRepository
   }
 }
 
-export function createOrganizationSlug(value: string, addSuffix = true): string
+export function createOrganizationSlug(value: string): string
 {
   const base = normalizeSlug(value).slice(0, 74).replace(/-+$/g, '');
-  return addSuffix ? base + '-' + randomToken(3) : base;
+  return base + '-' + randomToken(3);
 }
 
 export function normalizeSlug(value: string): string 
