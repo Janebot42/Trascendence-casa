@@ -15,7 +15,8 @@ export class PrismaListsRepository implements ListsRepository
         select 1 as locked
         from (select pg_advisory_xact_lock(hashtext(${`list-position:${input.boardId}`}))) acquired
       `;
-      const last = await tx.boardList.findFirst({ where: { boardId: input.boardId, archivedAt: null }, orderBy: { position: 'desc' }, select: { position: true } });
+      // La restricción única también incluye listas archivadas.
+      const last = await tx.boardList.findFirst({ where: { boardId: input.boardId }, orderBy: { position: 'desc' }, select: { position: true } });
       const row = await tx.boardList.create({ data: { id: randomToken(16), boardId: input.boardId, name: input.name.trim(), position: (last?.position ?? 0) + 1000 } });
       return mapList(row);
     }));
