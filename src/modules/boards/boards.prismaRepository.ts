@@ -12,16 +12,25 @@ export class PrismaBoardsRepository implements BoardsRepository
   {
     const id = randomToken(16);
     const row = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.board.create({ data: { id, organizationId: input.organizationId, name: input.name.trim(), description: input.description?.trim() || null, createdByUserId: input.actorUserId } });
+      const created = await tx.board.create({ data: { id, organizationId: input.organizationId, name: input.name.trim(), description: input.description?.trim() || null, createdByUserId: input.actorUserId, visibility: input.visibility ?? 'WORKSPACE' } });
       await tx.boardMember.create({ data: { boardId: id, userId: input.actorUserId, role: 'admin' } });
       return created;
     });
     return mapBoard(row);
   }
 
-  async listForOrganization(organizationId: string, pagination: PaginationInput): Promise<Page<Board>>
+  async listForOrganization(organizationId: string, userId: string, includePrivate: boolean, pagination: PaginationInput): Promise<Page<Board>>
   {
-    const where = { organizationId, archivedAt: null };
+    const where = {
+      organizationId,
+      archivedAt: null,
+      ...(includePrivate ? {} : {
+        OR: [
+          { visibility: 'WORKSPACE' as const },
+          { visibility: 'PRIVATE' as const, members: { some: { userId } } }
+        ]
+      })
+    };
     const [rows, total] = await Promise.all([
       this.prisma.board.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: pagination.limit, skip: pagination.offset }),
       this.prisma.board.count({ where })
@@ -53,7 +62,7 @@ export class PrismaBoardsRepository implements BoardsRepository
 
   async update(input: UpdateBoardInput): Promise<Board> 
   {
-    const row = await this.prisma.board.update({ where: { id: input.boardId }, data: { name: input.name?.trim(), description: input.description === undefined ? undefined : input.description?.trim() || null } });
+    const row = await this.prisma.board.update({ where: { id: input.boardId }, data: { name: input.name?.trim(), description: input.description === undefined ? undefined : input.description?.trim() || null, visibility: input.visibility } });
     return mapBoard(row);
   }
 
@@ -62,7 +71,7 @@ export class PrismaBoardsRepository implements BoardsRepository
   }
 }
 
-function mapBoard(row: { id: string; organizationId: string; name: string; description: string | null; createdByUserId: string; createdAt: Date; updatedAt: Date; archivedAt: Date | null }): Board 
+function mapBoard(row: { id: string; organizationId: string; name: string; description: string | null; createdByUserId: string; visibility: Board['visibility']; createdAt: Date; updatedAt: Date; archivedAt: Date | null }): Board
 {
-  return { id: row.id, organizationId: row.organizationId, name: row.name, description: row.description, createdByUserId: row.createdByUserId, createdAt: row.createdAt, updatedAt: row.updatedAt, archivedAt: row.archivedAt };
+  return { id: row.id, organizationId: row.organizationId, name: row.name, description: row.description, createdByUserId: row.createdByUserId, visibility: row.visibility, createdAt: row.createdAt, updatedAt: row.updatedAt, archivedAt: row.archivedAt };
 }

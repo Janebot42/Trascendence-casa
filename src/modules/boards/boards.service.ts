@@ -21,8 +21,9 @@ export class BoardsService
 
   async listOrganizationBoards(organizationId: string, actorUserId: string, pagination: PaginationInput = defaultPagination): Promise<Page<Board>>
   {
-    await this.organizationsService.getOrganizationForUser(organizationId, actorUserId);
-    return this.boardsRepository.listForOrganization(organizationId, pagination);
+    const organization = await this.organizationsService.getOrganizationForUser(organizationId, actorUserId);
+    const includePrivate = organization.role === 'owner' || organization.role === 'admin';
+    return this.boardsRepository.listForOrganization(organizationId, actorUserId, includePrivate, pagination);
   }
 
   async getBoardForUser(
@@ -68,6 +69,9 @@ export class BoardsService
   {
     const organization = await this.organizationsService.getOrganizationForUser(board.organizationId, userId);
     if (organization.role === 'owner' || organization.role === 'admin') return 'admin';
-    return (await this.boardsRepository.findMember(board.id, userId))?.role ?? 'member';
+    const boardMember = await this.boardsRepository.findMember(board.id, userId);
+    if (boardMember) return boardMember.role;
+    if (board.visibility === 'WORKSPACE') return 'member';
+    throw forbidden('Private board membership required', 'BOARD_MEMBERSHIP_REQUIRED');
   }
 }

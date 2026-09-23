@@ -72,4 +72,34 @@ export class OrganizationsService
       throw notFound('User not found', 'USER_NOT_FOUND');
     return this.organizationsRepository.upsertMember(input);
   }
+
+  async inviteMember(input: {
+    organizationId: string;
+    actorUserId: string;
+    username: string;
+    role: Exclude<OrganizationRole, 'owner'>;
+  }): Promise<OrganizationMember>
+  {
+    const actor = await this.getOrganizationForUser(input.organizationId, input.actorUserId);
+    if (!canManageOrganization(actor.role))
+      throw forbidden('Organization admin role required', 'ORGANIZATION_ADMIN_REQUIRED');
+    if (actor.role !== 'owner' && input.role === 'admin')
+      throw forbidden('Only an organization owner can invite admins', 'ORGANIZATION_OWNER_REQUIRED');
+
+    const user = await this.usersService.findByUsername(input.username);
+    if (!user)
+      throw notFound('No user exists with that email', 'INVITED_USER_NOT_FOUND');
+    if (user.id === input.actorUserId)
+      throw forbidden('You are already a member of this organization', 'ALREADY_ORGANIZATION_MEMBER');
+
+    const current = await this.organizationsRepository.findMember(input.organizationId, user.id);
+    if (current?.role === 'owner')
+      throw forbidden('The organization owner role cannot be changed', 'ORGANIZATION_OWNER_IMMUTABLE');
+
+    return this.organizationsRepository.upsertMember({
+      organizationId: input.organizationId,
+      userId: user.id,
+      role: input.role
+    });
+  }
 }

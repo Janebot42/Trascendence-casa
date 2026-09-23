@@ -25,6 +25,10 @@ const organizationMemberParamsSchema = z.object({
   userId: z.string().min(1)
 });
 const organizationMemberSchema = z.object({ role: z.enum(['admin', 'member']) });
+const organizationInvitationSchema = z.object({
+  username: z.string().trim().min(1).max(50),
+  role: z.enum(['admin', 'member']).default('member')
+});
 
 export async function registerOrganizationRoutes(
   app: FastifyInstance,
@@ -98,6 +102,18 @@ export async function registerOrganizationRoutes(
       organizationId: request.params.organizationId,
       actorUserId: request.currentUser!.id,
       userId: request.params.userId,
+      role: request.body.role
+    })
+  }));
+
+  typedApp.post('/organizations/:organizationId/invitations', {
+    preHandler: requireAuth(sessionsService),
+    schema: { params: organizationParamsSchema, body: organizationInvitationSchema }
+  }, async (request) => ({
+    member: await organizationsService.inviteMember({
+      organizationId: request.params.organizationId,
+      actorUserId: request.currentUser!.id,
+      username: request.body.username,
       role: request.body.role
     })
   }));

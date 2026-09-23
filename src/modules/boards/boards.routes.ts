@@ -9,12 +9,14 @@ import { paginationMetadata } from '../../shared/pagination.js';
 
 const createBoardSchema = z.object({
   name: z.string().trim().min(2).max(100),
-  description: z.string().trim().max(500).optional().nullable()
+  description: z.string().trim().max(500).optional().nullable(),
+  visibility: z.enum(['WORKSPACE', 'PRIVATE']).optional()
 });
 
 const updateBoardSchema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
-  description: z.string().trim().max(500).optional().nullable()
+  description: z.string().trim().max(500).optional().nullable(),
+  visibility: z.enum(['WORKSPACE', 'PRIVATE']).optional()
 });
 
 const organizationParamsSchema = z.object({ organizationId: z.string().min(1) });

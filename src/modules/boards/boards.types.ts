@@ -4,10 +4,13 @@ export type Board = {
   name: string;
   description: string | null;
   createdByUserId: string;
+  visibility: BoardVisibility;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
 };
+
+export type BoardVisibility = 'WORKSPACE' | 'PRIVATE';
 
 export type BoardRole = 'admin' | 'member' | 'observer';
 
@@ -23,6 +26,7 @@ export type CreateBoardInput = {
   actorUserId: string;
   name: string;
   description?: string | null;
+  visibility?: BoardVisibility;
 };
 
 export type UpdateBoardInput = {
@@ -30,6 +34,7 @@ export type UpdateBoardInput = {
   actorUserId: string;
   name?: string;
   description?: string | null;
+  visibility?: BoardVisibility;
 };
 
 export type SetBoardMemberInput = {

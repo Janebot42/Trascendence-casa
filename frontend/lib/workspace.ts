@@ -3,7 +3,7 @@ import { api } from './api';
 export type Page<T> = { items: T[]; limit: number; offset: number; total: number };
 
 export type Organization = { id: string; name: string; slug: string; role: 'owner' | 'admin' | 'member' };
-export type Board = { id: string; organizationId: string; name: string; description: string | null };
+export type Board = { id: string; organizationId: string; name: string; description: string | null; visibility: 'WORKSPACE' | 'PRIVATE' };
 export type BoardList = { id: string; boardId: string; name: string; position: number };
 export type Card = {
   id: string;
@@ -43,11 +43,18 @@ export async function listBoards(organizationId: string) {
   return (await api<{ boards: Board[]; pagination: unknown }>(`/organizations/${organizationId}/boards?limit=100&offset=0`)).boards;
 }
 
-export async function createBoard(organizationId: string, input: { name: string; description?: string | null }) {
+export async function createBoard(organizationId: string, input: { name: string; description?: string | null; visibility?: Board['visibility'] }) {
   return (await api<{ board: Board }>(`/organizations/${organizationId}/boards`, {
     method: 'POST',
     body: JSON.stringify(input),
   })).board;
+}
+
+export async function inviteOrganizationMember(organizationId: string, input: { username: string; role: 'admin' | 'member' }) {
+  return (await api<{ member: { organizationId: string; userId: string; role: 'admin' | 'member'; joinedAt: string } }>(`/organizations/${organizationId}/invitations`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })).member;
 }
 
 export async function updateBoard(boardId: string, input: { name?: string; description?: string | null }) {

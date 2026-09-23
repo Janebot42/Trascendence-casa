@@ -17,6 +17,7 @@ import {
   createCard,
   createLabel,
   createOrganization,
+  inviteOrganizationMember,
   updateOrganization,
   archiveOrganization,
   createList,
@@ -69,6 +70,7 @@ export default function Home() {
   const [isCreateBoardOpen, setIsCreateBoardOpen] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
+  const [newBoardVisibility, setNewBoardVisibility] = useState<Board['visibility']>('WORKSPACE');
   const [newOrganizationName, setNewOrganizationName] = useState('Mi espacio de trabajo');
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
@@ -76,6 +78,10 @@ export default function Home() {
   const [editOrganizationName, setEditOrganizationName] = useState('');
   const [editOrganizationSlug, setEditOrganizationSlug] = useState('');
   const [isSavingOrganization, setIsSavingOrganization] = useState(false);
+  const [isInviteOrganizationOpen, setIsInviteOrganizationOpen] = useState(false);
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
+  const [isInvitingMember, setIsInvitingMember] = useState(false);
   const [isCreateListOpen, setIsCreateListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [isCreatingList, setIsCreatingList] = useState(false);
@@ -117,7 +123,7 @@ export default function Home() {
           if (active) {
             setSelectedBoardId('');
             setLabels([]);
-            setWorkspace({ board: { id: '', organizationId: organization.id, name: 'Sin tablero', description: null }, columns: [] });
+            setWorkspace({ board: { id: '', organizationId: organization.id, name: 'Sin tablero', description: null, visibility: 'WORKSPACE' }, columns: [] });
           }
           return;
         }
@@ -325,9 +331,11 @@ export default function Home() {
       await createBoard(targetOrganizationId, {
         name: newBoardName.trim(),
         description: newBoardDescription.trim() || null,
+        visibility: newBoardVisibility,
       });
       setNewBoardName('');
       setNewBoardDescription('');
+      setNewBoardVisibility('WORKSPACE');
       setNewOrganizationName('Mi espacio de trabajo');
       setIsCreateBoardOpen(false);
       reload();
@@ -336,6 +344,21 @@ export default function Home() {
     } finally {
       setIsCreatingBoard(false);
     }
+  };
+
+  const handleInviteOrganizationMember = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!organizationId || !inviteUsername.trim()) return;
+    setIsInvitingMember(true); setError(null);
+    try {
+      await inviteOrganizationMember(organizationId, { username: inviteUsername.trim(), role: inviteRole });
+      setInviteUsername('');
+      setInviteRole('member');
+      setIsInviteOrganizationOpen(false);
+      alert('Usuario añadido a la organización');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo invitar al usuario');
+    } finally { setIsInvitingMember(false); }
   };
 
   return (
@@ -420,7 +443,7 @@ export default function Home() {
             <h2 className="text-xl font-semibold">Editar organización</h2>
             <label className="mt-6 block text-sm font-medium">Nombre<input value={editOrganizationName} onChange={(event) => setEditOrganizationName(event.target.value)} required minLength={2} maxLength={80} autoFocus disabled={isSavingOrganization} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
             <label className="mt-4 block text-sm font-medium">Slug<input value={editOrganizationSlug} onChange={(event) => setEditOrganizationSlug(event.target.value)} required minLength={2} maxLength={80} disabled={isSavingOrganization} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
-            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsEditOrganizationOpen(false)} className="rounded-xl border px-4 py-3">Cancelar</button><button type="submit" disabled={isSavingOrganization} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white">Guardar cambios</button></div>
+            <div className="mt-6 flex flex-wrap justify-end gap-3"><button type="button" onClick={() => setIsEditOrganizationOpen(false)} className="rounded-xl border px-4 py-3">Cancelar</button><button type="button" onClick={() => setIsInviteOrganizationOpen(true)} disabled={organizations.find((candidate) => candidate.id === organizationId)?.role === 'member'} className="rounded-xl border border-primary px-4 py-3 font-semibold text-primary disabled:opacity-50">Invitar usuario</button><button type="submit" disabled={isSavingOrganization} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white">Guardar cambios</button></div>
           </form>
         </div>
       )}
@@ -442,12 +465,25 @@ export default function Home() {
               {!organizationId && <label className="block text-sm font-medium">Nombre del espacio de trabajo<input value={newOrganizationName} onChange={(event) => setNewOrganizationName(event.target.value)} required minLength={2} maxLength={80} disabled={isCreatingBoard} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>}
               <label className="block text-sm font-medium">Nombre<input value={newBoardName} onChange={(event) => setNewBoardName(event.target.value)} required minLength={2} maxLength={100} autoFocus disabled={isCreatingBoard} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>
               <label className="block text-sm font-medium">Descripción <span className="font-normal text-on-surface-variant">(opcional)</span><textarea value={newBoardDescription} onChange={(event) => setNewBoardDescription(event.target.value)} maxLength={500} rows={3} disabled={isCreatingBoard || !organizationId} className="mt-2 w-full resize-none rounded-xl border border-outline-variant px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" /></label>
+              <fieldset disabled={isCreatingBoard} className="space-y-2"><legend className="text-sm font-medium">Visibilidad</legend><label className="flex cursor-pointer items-start gap-3 rounded-xl border border-outline-variant p-3"><input type="radio" name="new-board-visibility" value="WORKSPACE" checked={newBoardVisibility === 'WORKSPACE'} onChange={() => setNewBoardVisibility('WORKSPACE')} className="mt-1" /><span><span className="block text-sm font-semibold">Toda la organización</span><span className="block text-xs text-on-surface-variant">Todos los miembros podrán verlo y editarlo.</span></span></label><label className="flex cursor-pointer items-start gap-3 rounded-xl border border-outline-variant p-3"><input type="radio" name="new-board-visibility" value="PRIVATE" checked={newBoardVisibility === 'PRIVATE'} onChange={() => setNewBoardVisibility('PRIVATE')} className="mt-1" /><span><span className="block text-sm font-semibold">Privado</span><span className="block text-xs text-on-surface-variant">Solo los miembros del tablero y administradores de la organización tendrán acceso.</span></span></label></fieldset>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setIsCreateBoardOpen(false)} className="rounded-xl border border-outline-variant px-4 py-3 font-semibold text-on-surface-variant">Cancelar</button>
                 <button type="submit" disabled={isCreatingBoard} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{isCreatingBoard ? 'Creando...' : 'Crear tablero'}</button>
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {isInviteOrganizationOpen && organizationId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="invite-organization-title">
+          <form onSubmit={handleInviteOrganizationMember} className="w-full max-w-md rounded-2xl border border-outline-variant bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between gap-4"><h2 id="invite-organization-title" className="text-xl font-semibold">Invitar usuario</h2><button type="button" onClick={() => setIsInviteOrganizationOpen(false)} aria-label="Cerrar" className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">close</span></button></div>
+            <p className="mt-2 text-sm text-on-surface-variant">El usuario debe tener una cuenta registrada con este nombre de usuario.</p>
+            <label className="mt-6 block text-sm font-medium">Nombre de usuario<input type="text" value={inviteUsername} onChange={(event) => setInviteUsername(event.target.value)} required autoFocus disabled={isInvitingMember} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
+            <label className="mt-4 block text-sm font-medium">Rol<select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'admin' | 'member')} disabled={isInvitingMember} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3"><option value="member">Miembro</option><option value="admin" disabled={organizations.find((candidate) => candidate.id === organizationId)?.role !== 'owner'}>Administrador</option></select></label>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsInviteOrganizationOpen(false)} className="rounded-xl border border-outline-variant px-4 py-3">Cancelar</button><button type="submit" disabled={isInvitingMember} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white">{isInvitingMember ? 'Añadiendo...' : 'Añadir usuario'}</button></div>
+          </form>
         </div>
       )}
 

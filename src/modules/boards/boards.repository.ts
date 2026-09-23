@@ -5,7 +5,7 @@ import { paginateArray, type Page, type PaginationInput } from '../../shared/pag
 export interface BoardsRepository 
 {
   create(input: CreateBoardInput): Promise<Board>;
-  listForOrganization(organizationId: string, pagination: PaginationInput): Promise<Page<Board>>;
+  listForOrganization(organizationId: string, userId: string, includePrivate: boolean, pagination: PaginationInput): Promise<Page<Board>>;
   findById(boardId: string): Promise<Board | null>;
   findMember(boardId: string, userId: string): Promise<BoardMember | null>;
   upsertMember(input: SetBoardMemberInput): Promise<BoardMember>;
@@ -27,6 +27,7 @@ export class InMemoryBoardsRepository implements BoardsRepository
       name: input.name.trim(),
       description: input.description?.trim() || null,
       createdByUserId: input.actorUserId,
+      visibility: input.visibility ?? 'WORKSPACE',
       createdAt: now,
       updatedAt: now,
       archivedAt: null
@@ -41,10 +42,11 @@ export class InMemoryBoardsRepository implements BoardsRepository
     return board;
   }
 
-  async listForOrganization(organizationId: string, pagination: PaginationInput): Promise<Page<Board>>
+  async listForOrganization(organizationId: string, userId: string, includePrivate: boolean, pagination: PaginationInput): Promise<Page<Board>>
   {
     const boards = [...this.boards.values()]
       .filter((board) => board.organizationId === organizationId && !board.archivedAt)
+      .filter((board) => includePrivate || board.visibility === 'WORKSPACE' || this.members.has(memberKey(board.id, userId)))
       .sort((left, right) =>
         right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id)
       );
@@ -80,6 +82,7 @@ export class InMemoryBoardsRepository implements BoardsRepository
       throw new Error('Board not found');
     board.name = input.name?.trim() ?? board.name;
     board.description = input.description === undefined ? board.description : input.description?.trim() || null;
+    board.visibility = input.visibility ?? board.visibility;
     board.updatedAt = new Date();
     return board;
   }
