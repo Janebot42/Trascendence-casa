@@ -55,7 +55,7 @@ export default function SignupPage() {
         <section className="w-full rounded-[28px] border border-outline-variant bg-white p-6 shadow-sm md:p-8">
           <div className="mb-6 text-center">
             <h2 className="text-2xl font-semibold">Sign up</h2>
-            <p className="mt-2 text-sm text-on-surface-variant">Usa un username y una contraseña segura.</p>
+            <p className="mt-2 text-sm text-on-surface-variant">Usa un username, email y una contraseña segura.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -64,8 +64,8 @@ export default function SignupPage() {
               <input value={username} onChange={(event) => setUsername(event.target.value)} required minLength={3} maxLength={32} autoComplete="username" disabled={isLoading} className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" />
             </label>
             <label className="block text-sm font-medium">
-              Email <span className="font-normal text-on-surface-variant">(opcional)</span>
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" disabled={isLoading} className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" />
+              Email
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} autoComplete="email" disabled={isLoading} className="mt-2 w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50" />
             </label>
             <label className="block text-sm font-medium">
               Contraseña

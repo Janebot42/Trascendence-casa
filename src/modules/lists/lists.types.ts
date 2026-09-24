@@ -24,4 +24,5 @@ export type ReorderListsInput = {
   boardId: string;
   actorUserId: string;
   listIds: string[];
+  expectedListIds?: string[];
 };

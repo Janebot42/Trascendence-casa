@@ -1,14 +1,16 @@
 import { randomToken } from '../../shared/crypto/randomToken.js';
 import type { Card, CreateCardInput, MoveCardInput, UpdateCardInput } from './cards.types.js';
 import { paginateArray, type Page, type PaginationInput } from '../../shared/pagination.js';
+import type { ActivityMutation } from '../activity/activity.types.js';
+import { conflict } from '../../shared/errors/httpErrors.js';
 
 export interface CardsRepository {
-  create(input: CreateCardInput): Promise<Card>;
+  create(input: CreateCardInput, activity?: ActivityMutation): Promise<Card>;
   listForList(listId: string, pagination: PaginationInput): Promise<Page<Card>>;
   findById(cardId: string): Promise<Card | null>;
-  update(input: UpdateCardInput): Promise<Card>;
-  move(input: MoveCardInput): Promise<Card>;
-  archive(cardId: string): Promise<void>;
+  update(input: UpdateCardInput, activity?: ActivityMutation): Promise<Card>;
+  move(input: MoveCardInput, activity?: ActivityMutation): Promise<Card>;
+  archive(cardId: string, activity?: ActivityMutation): Promise<void>;
 }
 
 export class InMemoryCardsRepository implements CardsRepository {
@@ -26,6 +28,7 @@ export class InMemoryCardsRepository implements CardsRepository {
       dueDate: input.dueDate ?? null,
       priority: input.priority ?? 'Medium',
       completed: input.completed ?? false,
+      version: 1,
       createdById: input.actorUserId,
       createdAt: now,
       updatedAt: now,
@@ -48,11 +51,13 @@ export class InMemoryCardsRepository implements CardsRepository {
   async update(input: UpdateCardInput): Promise<Card> {
     const card = this.cards.get(input.cardId);
     if (!card || card.archivedAt) throw new Error('Card not found');
+    if (input.expectedVersion !== undefined && card.version !== input.expectedVersion) throw conflict('Card has changed since it was loaded', 'STALE_CARD');
     card.title = input.title?.trim() ?? card.title;
     card.description = input.description === undefined ? card.description : input.description?.trim() || null;
     card.dueDate = input.dueDate === undefined ? card.dueDate : input.dueDate;
     card.priority = input.priority ?? card.priority;
     card.completed = input.completed ?? card.completed;
+    card.version += 1;
     card.updatedAt = new Date();
     return card;
   }
@@ -60,8 +65,10 @@ export class InMemoryCardsRepository implements CardsRepository {
   async move(input: MoveCardInput): Promise<Card> {
     const card = this.cards.get(input.cardId);
     if (!card || card.archivedAt) throw new Error('Card not found');
+    if (input.expectedVersion !== undefined && card.version !== input.expectedVersion) throw conflict('Card has changed since it was loaded', 'STALE_CARD');
     const targetCards = this.allCards(input.targetListId).filter((item) => item.id !== input.cardId);
     card.listId = input.targetListId;
+    card.version += 1;
     card.position = targetCards.length ? Math.max(...targetCards.map((item) => item.position)) + 1000 : 1000;
     card.updatedAt = new Date();
     return card;

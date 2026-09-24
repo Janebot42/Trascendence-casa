@@ -16,8 +16,8 @@ const createCardSchema = z.object({
   priority: z.enum(['Low', 'Medium', 'Urgent', 'Enhancement']).optional(),
   completed: z.boolean().optional()
 });
-const updateCardSchema = createCardSchema.partial();
-const moveCardSchema = z.object({ targetListId: z.string().min(1) });
+const updateCardSchema = createCardSchema.partial().extend({ expectedVersion: z.number().int().positive() });
+const moveCardSchema = z.object({ targetListId: z.string().min(1), expectedVersion: z.number().int().positive() });
 
 export async function registerCardRoutes(
   app: FastifyInstance,
@@ -71,7 +71,8 @@ export async function registerCardRoutes(
     card: await cardsService.moveCard({
       cardId: request.params.cardId,
       actorUserId: request.currentUser!.id,
-      targetListId: request.body.targetListId
+      targetListId: request.body.targetListId,
+      expectedVersion: request.body.expectedVersion
     })
   }));
 

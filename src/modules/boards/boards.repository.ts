@@ -1,16 +1,20 @@
 import { randomToken } from '../../shared/crypto/randomToken.js';
 import type { Board, BoardMember, CreateBoardInput, SetBoardMemberInput, UpdateBoardInput } from './boards.types.js';
 import { paginateArray, type Page, type PaginationInput } from '../../shared/pagination.js';
+import type { ActivityMutation } from '../activity/activity.types.js';
 
 export interface BoardsRepository 
 {
-  create(input: CreateBoardInput): Promise<Board>;
+  create(input: CreateBoardInput, activity?: ActivityMutation): Promise<Board>;
   listForOrganization(organizationId: string, userId: string, includePrivate: boolean, pagination: PaginationInput): Promise<Page<Board>>;
   findById(boardId: string): Promise<Board | null>;
   findMember(boardId: string, userId: string): Promise<BoardMember | null>;
   upsertMember(input: SetBoardMemberInput): Promise<BoardMember>;
-  update(input: UpdateBoardInput): Promise<Board>;
-  archive(boardId: string): Promise<void>;
+  listMembers(boardId: string): Promise<BoardMember[]>;
+  removeMember(boardId: string, userId: string): Promise<void>;
+  removeUserFromOrganization(organizationId: string, userId: string): Promise<void>;
+  update(input: UpdateBoardInput, activity?: ActivityMutation): Promise<Board>;
+  archive(boardId: string, activity?: ActivityMutation): Promise<void>;
 }
 
 export class InMemoryBoardsRepository implements BoardsRepository 
@@ -73,6 +77,20 @@ export class InMemoryBoardsRepository implements BoardsRepository
     const member: BoardMember = { ...input, joinedAt: current?.joinedAt ?? new Date() };
     this.members.set(key, member);
     return member;
+  }
+
+  async listMembers(boardId: string): Promise<BoardMember[]> {
+    return [...this.members.values()].filter((member) => member.boardId === boardId);
+  }
+
+  async removeMember(boardId: string, userId: string): Promise<void> {
+    this.members.delete(memberKey(boardId, userId));
+  }
+
+  async removeUserFromOrganization(organizationId: string, userId: string): Promise<void> {
+    for (const board of this.boards.values()) {
+      if (board.organizationId === organizationId) this.members.delete(memberKey(board.id, userId));
+    }
   }
 
   async update(input: UpdateBoardInput): Promise<Board> 

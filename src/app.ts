@@ -52,6 +52,10 @@ import { InMemoryLabelsRepository } from './modules/labels/labels.repository.js'
 import { PrismaLabelsRepository } from './modules/labels/labels.prismaRepository.js';
 import { LabelsService } from './modules/labels/labels.service.js';
 import { registerLabelRoutes } from './modules/labels/labels.routes.js';
+import { InMemoryActivityRepository } from './modules/activity/activity.repository.js';
+import { PrismaActivityRepository } from './modules/activity/activity.prismaRepository.js';
+import { ActivityService } from './modules/activity/activity.service.js';
+import { registerActivityRoutes } from './modules/activity/activity.routes.js';
 
 export async function buildApp() 
 {
@@ -98,13 +102,14 @@ export async function buildApp()
     ? new PrismaRegistrationRepository(prisma)
     : new InMemoryRegistrationRepository(usersRepository, authRepository);
   const twoFactorRepository = prisma ? new PrismaTwoFactorRepository(prisma) : new InMemoryTwoFactorRepository();
+  const boardsRepository = prisma ? new PrismaBoardsRepository(prisma) : new InMemoryBoardsRepository();
   const organizationsRepository = prisma
     ? new PrismaOrganizationsRepository(prisma)
-    : new InMemoryOrganizationsRepository();
-  const boardsRepository = prisma ? new PrismaBoardsRepository(prisma) : new InMemoryBoardsRepository();
+    : new InMemoryOrganizationsRepository(boardsRepository);
   const listsRepository = prisma ? new PrismaListsRepository(prisma) : new InMemoryListsRepository();
   const cardsRepository = prisma ? new PrismaCardsRepository(prisma) : new InMemoryCardsRepository();
   const labelsRepository = prisma ? new PrismaLabelsRepository(prisma) : new InMemoryLabelsRepository();
+  const activityRepository = prisma ? new PrismaActivityRepository(prisma) : new InMemoryActivityRepository();
   const sessionsService = new SessionsService(sessionsRepository, usersService);
   const totpService = new TotpService(new SecretBox(securityConfig.totpEncryptionKeyBase64));
   const recoveryCodesService = new RecoveryCodesService(twoFactorRepository);
@@ -123,10 +128,11 @@ export async function buildApp()
     twoFactorService
   );
   const organizationsService = new OrganizationsService(organizationsRepository, usersService);
-  const boardsService = new BoardsService(boardsRepository, organizationsService);
-  const listsService = new ListsService(listsRepository, boardsService);
-  const cardsService = new CardsService(cardsRepository, listsService);
-  const labelsService = new LabelsService(labelsRepository, boardsService, cardsService, listsService);
+  const boardsService = new BoardsService(boardsRepository, organizationsService, usersService, activityRepository);
+  const listsService = new ListsService(listsRepository, boardsService, activityRepository);
+  const cardsService = new CardsService(cardsRepository, listsService, activityRepository);
+  const labelsService = new LabelsService(labelsRepository, boardsService, cardsService, listsService, activityRepository);
+  const activityService = new ActivityService(activityRepository, boardsService, usersService);
 
   if (env.NODE_ENV === 'test') 
   {
@@ -139,7 +145,9 @@ export async function buildApp()
       organizationsService,
       boardsService,
       listsService,
-      cardsService
+      cardsService,
+      labelsService,
+      activityService
     });
   }
 
@@ -163,6 +171,7 @@ export async function buildApp()
   await registerListRoutes(app, listsService, sessionsService);
   await registerCardRoutes(app, cardsService, sessionsService);
   await registerLabelRoutes(app, labelsService, sessionsService);
+  await registerActivityRoutes(app, activityService, sessionsService);
   await registerTwoFactorRoutes(app, twoFactorService, sessionsService);
   await registerUserRoutes(app, sessionsService, usersService);
   await registerUiRoutes(app);

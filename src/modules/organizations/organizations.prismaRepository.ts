@@ -74,6 +74,25 @@ export class PrismaOrganizationsRepository implements OrganizationsRepository
     return { organizationId: row.organizationId, userId: row.userId, role: row.role as OrganizationMember['role'], joinedAt: row.joinedAt };
   }
 
+  async listMembers(organizationId: string): Promise<OrganizationMember[]> {
+    const rows = await this.prisma.organizationMember.findMany({ where: { organizationId }, orderBy: [{ joinedAt: 'asc' }, { userId: 'asc' }] });
+    return rows.map((row) => ({ organizationId: row.organizationId, userId: row.userId, role: row.role as OrganizationMember['role'], joinedAt: row.joinedAt }));
+  }
+
+  async removeMember(organizationId: string, userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.boardMember.deleteMany({ where: { userId, board: { organizationId } } });
+      await tx.organizationMember.delete({ where: { organizationId_userId: { organizationId, userId } } });
+    });
+  }
+
+  async transferOwnership(organizationId: string, currentOwnerId: string, newOwnerId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.organizationMember.update({ where: { organizationId_userId: { organizationId, userId: currentOwnerId } }, data: { role: 'admin' } });
+      await tx.organizationMember.update({ where: { organizationId_userId: { organizationId, userId: newOwnerId } }, data: { role: 'owner' } });
+    });
+  }
+
   async update(input: UpdateOrganizationInput): Promise<Organization> 
   {
     try {

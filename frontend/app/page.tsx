@@ -7,6 +7,7 @@ import BoardHeader from '@/components/board/BoardHeader';
 import WorkspaceToolbar from '@/components/board/WorkspaceToolbar';
 import KanbanBoard from '@/components/board/kanbanBoard/KanbanBoard';
 import { ProtectedRoute } from '@/components/auth';
+import { useAuth } from '@/components/auth/useAuth';
 import { BoardColumn, TaskItem } from '@/types/board';
 import {
   archiveCard,
@@ -18,6 +19,14 @@ import {
   createLabel,
   createOrganization,
   inviteOrganizationMember,
+  leaveOrganization,
+  leaveBoard,
+  listOrganizationMembers,
+  listBoardMembers,
+  removeOrganizationMember,
+  removeBoardMember,
+  transferOrganizationOwnership,
+  WorkspaceMember,
   updateOrganization,
   archiveOrganization,
   createList,
@@ -46,12 +55,14 @@ function toTask(card: Awaited<ReturnType<typeof listCards>>[number], labels: Awa
     description: card.description ?? undefined,
     priority: card.priority,
     completed: card.completed,
+    version: card.version,
     dueDate: card.dueDate ?? undefined,
     labels,
   };
 }
 
 export default function Home() {
+  const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [workspace, setWorkspace] = useState<LoadedWorkspace | null>(null);
@@ -79,9 +90,13 @@ export default function Home() {
   const [editOrganizationSlug, setEditOrganizationSlug] = useState('');
   const [isSavingOrganization, setIsSavingOrganization] = useState(false);
   const [isInviteOrganizationOpen, setIsInviteOrganizationOpen] = useState(false);
-  const [inviteUsername, setInviteUsername] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
   const [isInvitingMember, setIsInvitingMember] = useState(false);
+  const [memberDialog, setMemberDialog] = useState<'organization' | 'board' | null>(null);
+  const [managedMembers, setManagedMembers] = useState<WorkspaceMember[]>([]);
+  const [canManageListedMembers, setCanManageListedMembers] = useState(false);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isCreateListOpen, setIsCreateListOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [isCreatingList, setIsCreatingList] = useState(false);
@@ -161,14 +176,15 @@ export default function Home() {
     const sourceColumn = findTaskColumn(task.id);
     if (!sourceColumn) return;
     const sourceTask = sourceColumn.tasks.find((candidate) => candidate.id === task.id);
-    await updateCard(task.id, {
+    const updatedCard = await updateCard(task.id, {
       title: task.title,
       description: task.description ?? null,
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
       priority: task.priority,
       completed: task.completed ?? false,
+      expectedVersion: task.version ?? 1,
     });
-    if (sourceColumn.id !== newColumnId) await moveCard(task.id, newColumnId);
+    if (sourceColumn.id !== newColumnId) await moveCard(task.id, newColumnId, updatedCard.version);
     const previousLabelIds = new Set(sourceTask?.labels?.map((label) => label.id) ?? []);
     const nextLabelIds = new Set(task.labels?.map((label) => label.id) ?? []);
     await Promise.all([
@@ -202,7 +218,7 @@ export default function Home() {
 
   const handleReorderLists = async (listIds: string[]) => {
     if (!workspace?.board.id) return;
-    await reorderLists(workspace.board.id, listIds);
+    await reorderLists(workspace.board.id, listIds, workspace.columns.map((column) => column.id));
     reload();
   };
 
@@ -348,17 +364,59 @@ export default function Home() {
 
   const handleInviteOrganizationMember = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!organizationId || !inviteUsername.trim()) return;
+    if (!organizationId || !inviteEmail.trim()) return;
     setIsInvitingMember(true); setError(null);
     try {
-      await inviteOrganizationMember(organizationId, { username: inviteUsername.trim(), role: inviteRole });
-      setInviteUsername('');
+      await inviteOrganizationMember(organizationId, { email: inviteEmail.trim(), role: inviteRole });
+      setInviteEmail('');
       setInviteRole('member');
       setIsInviteOrganizationOpen(false);
       alert('Usuario añadido a la organización');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo invitar al usuario');
     } finally { setIsInvitingMember(false); }
+  };
+
+  const openMemberDialog = async (type: 'organization' | 'board') => {
+    const id = type === 'organization' ? organizationId : selectedBoardId;
+    if (!id) return;
+    setMemberDialog(type); setIsLoadingMembers(true); setError(null);
+    try {
+      if (type === 'organization') { setManagedMembers(await listOrganizationMembers(id)); setCanManageListedMembers(true); }
+      else { const result = await listBoardMembers(id); setManagedMembers(result.members); setCanManageListedMembers(result.canManageMembers); }
+    }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudieron cargar los miembros'); setMemberDialog(null); }
+    finally { setIsLoadingMembers(false); }
+  };
+
+  const handleRemoveMember = async (member: WorkspaceMember) => {
+    const id = memberDialog === 'organization' ? organizationId : selectedBoardId;
+    if (!id || !window.confirm(`¿Quieres quitar a ${member.user?.username ?? 'este usuario'}?`)) return;
+    try {
+      if (memberDialog === 'organization') await removeOrganizationMember(id, member.userId);
+      else await removeBoardMember(id, member.userId);
+      setManagedMembers((current) => current.filter((candidate) => candidate.userId !== member.userId));
+      reload();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo quitar al usuario'); }
+  };
+
+  const handleTransferOwnership = async (member: WorkspaceMember) => {
+    if (!organizationId || !window.confirm(`¿Transferir la propiedad a ${member.user?.username ?? 'este usuario'}? Pasarás a ser administrador.`)) return;
+    try { await transferOrganizationOwnership(organizationId, member.userId); setMemberDialog(null); reload(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo transferir la propiedad'); }
+  };
+
+  const handleLeaveOrganization = async () => {
+    const organization = organizations.find((candidate) => candidate.id === organizationId);
+    if (!organization || organization.role === 'owner' || !window.confirm('¿Quieres salir de esta organización? Perderás acceso a sus tableros.')) return;
+    try { await leaveOrganization(organization.id); setOrganizationId(null); setSelectedBoardId(''); setMemberDialog(null); reload(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo salir de la organización'); }
+  };
+
+  const handleLeaveBoard = async () => {
+    if (!selectedBoardId || !window.confirm('¿Quieres salir de este tablero?')) return;
+    try { await leaveBoard(selectedBoardId); setSelectedBoardId(''); reload(); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo salir del tablero'); }
   };
 
   return (
@@ -405,6 +463,12 @@ export default function Home() {
           disabled={isLoading}
         />
         <BoardHeader title={workspace?.board.name ?? 'Tablero'} onEdit={workspace?.board.id ? openEditBoard : undefined} onArchive={workspace?.board.id ? handleArchiveBoard : undefined} />
+        {organizationId && <div className="flex flex-wrap gap-2 px-6 py-2">
+          {organizations.find((candidate) => candidate.id === organizationId)?.role !== 'member' && <button type="button" onClick={() => void openMemberDialog('organization')} className="rounded-lg border border-outline-variant px-3 py-2 text-sm">Miembros de organización</button>}
+          {workspace?.board.id && workspace.board.visibility === 'PRIVATE' && organizations.find((candidate) => candidate.id === organizationId)?.role === 'member' && <button type="button" onClick={() => void handleLeaveBoard()} className="rounded-lg border border-outline-variant px-3 py-2 text-sm">Salir del tablero</button>}
+          {workspace?.board.id && <button type="button" onClick={() => void openMemberDialog('board')} className="rounded-lg border border-outline-variant px-3 py-2 text-sm">Miembros del tablero</button>}
+          {organizations.find((candidate) => candidate.id === organizationId)?.role !== 'owner' && <button type="button" onClick={() => void handleLeaveOrganization()} className="rounded-lg border border-outline-variant px-3 py-2 text-sm">Salir de la organización</button>}
+        </div>}
         {isLoading && <div className="p-6 text-on-surface-variant">Cargando tablero...</div>}
         {!isLoading && error && <div className="p-6 text-error">{error}</div>}
         {!isLoading && !error && workspace && workspace.columns.length > 0 && (
@@ -479,13 +543,24 @@ export default function Home() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="invite-organization-title">
           <form onSubmit={handleInviteOrganizationMember} className="w-full max-w-md rounded-2xl border border-outline-variant bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between gap-4"><h2 id="invite-organization-title" className="text-xl font-semibold">Invitar usuario</h2><button type="button" onClick={() => setIsInviteOrganizationOpen(false)} aria-label="Cerrar" className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-high"><span className="material-symbols-outlined">close</span></button></div>
-            <p className="mt-2 text-sm text-on-surface-variant">El usuario debe tener una cuenta registrada con este nombre de usuario.</p>
-            <label className="mt-6 block text-sm font-medium">Nombre de usuario<input type="text" value={inviteUsername} onChange={(event) => setInviteUsername(event.target.value)} required autoFocus disabled={isInvitingMember} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
+            <p className="mt-2 text-sm text-on-surface-variant">La persona debe tener una cuenta registrada con este email.</p>
+            <label className="mt-6 block text-sm font-medium">Email<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} required autoFocus disabled={isInvitingMember} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3" /></label>
             <label className="mt-4 block text-sm font-medium">Rol<select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'admin' | 'member')} disabled={isInvitingMember} className="mt-2 w-full rounded-xl border border-outline-variant px-4 py-3"><option value="member">Miembro</option><option value="admin" disabled={organizations.find((candidate) => candidate.id === organizationId)?.role !== 'owner'}>Administrador</option></select></label>
             <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setIsInviteOrganizationOpen(false)} className="rounded-xl border border-outline-variant px-4 py-3">Cancelar</button><button type="submit" disabled={isInvitingMember} className="rounded-xl bg-primary px-4 py-3 font-semibold text-white">{isInvitingMember ? 'Añadiendo...' : 'Añadir usuario'}</button></div>
           </form>
         </div>
       )}
+
+      {memberDialog && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="members-title">
+        <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+          <div className="flex items-center justify-between"><h2 id="members-title" className="text-xl font-semibold">Miembros del {memberDialog === 'organization' ? 'espacio' : 'tablero'}</h2><button type="button" onClick={() => setMemberDialog(null)} className="rounded-lg border px-3 py-2">Cerrar</button></div>
+          {isLoadingMembers ? <p className="py-6 text-sm text-on-surface-variant">Cargando miembros…</p> : <ul className="mt-4 divide-y divide-outline-variant">{managedMembers.map((member) => {
+            const actorRole = organizations.find((candidate) => candidate.id === organizationId)?.role;
+            const canRemove = canManageListedMembers && member.userId !== currentUser?.id && (memberDialog === 'organization' ? (member.role !== 'owner' && (member.role !== 'admin' || actorRole === 'owner')) : (member.role !== 'admin' || actorRole === 'owner'));
+            return <li key={member.userId} className="flex items-center justify-between gap-3 py-3"><div><p className="font-medium">{member.user?.displayName ?? member.user?.username ?? member.userId}</p><p className="text-sm text-on-surface-variant">@{member.user?.username ?? member.userId} · {member.role}</p></div><div className="flex gap-2">{memberDialog === 'organization' && actorRole === 'owner' && member.role === 'admin' && <button type="button" onClick={() => void handleTransferOwnership(member)} className="rounded-lg border px-3 py-2 text-sm">Hacer owner</button>}{canRemove && <button type="button" onClick={() => void handleRemoveMember(member)} className="rounded-lg border border-error/30 px-3 py-2 text-sm text-error">Quitar</button>}</div></li>;
+          })}</ul>}
+        </section>
+      </div>}
 
       {isEditBoardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="edit-board-title">

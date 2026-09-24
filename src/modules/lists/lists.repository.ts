@@ -2,15 +2,17 @@ import { badRequest } from '../../shared/errors/httpErrors.js';
 import { randomToken } from '../../shared/crypto/randomToken.js';
 import type { BoardList, CreateListInput, ReorderListsInput, UpdateListInput } from './lists.types.js';
 import { paginateArray, type Page, type PaginationInput } from '../../shared/pagination.js';
+import type { ActivityMutation } from '../activity/activity.types.js';
+import { conflict } from '../../shared/errors/httpErrors.js';
 
 export interface ListsRepository 
 {
-  create(input: CreateListInput): Promise<BoardList>;
+  create(input: CreateListInput, activity?: ActivityMutation): Promise<BoardList>;
   listForBoard(boardId: string, pagination: PaginationInput): Promise<Page<BoardList>>;
   findById(listId: string): Promise<BoardList | null>;
-  update(input: UpdateListInput): Promise<BoardList>;
-  reorder(input: ReorderListsInput): Promise<BoardList[]>;
-  archive(listId: string): Promise<void>;
+  update(input: UpdateListInput, activity?: ActivityMutation): Promise<BoardList>;
+  reorder(input: ReorderListsInput, activity?: ActivityMutation): Promise<BoardList[]>;
+  archive(listId: string, activity?: ActivityMutation): Promise<void>;
 }
 
 export class InMemoryListsRepository implements ListsRepository 
@@ -59,6 +61,7 @@ export class InMemoryListsRepository implements ListsRepository
   async reorder(input: ReorderListsInput): Promise<BoardList[]> 
   {
     const currentLists = this.activeLists(input.boardId);
+    assertExpectedListOrder(currentLists.map((list) => list.id), input.expectedListIds);
     assertSameListSet(currentLists.map((list) => list.id), input.listIds);
 
     const now = new Date();
@@ -88,6 +91,12 @@ export class InMemoryListsRepository implements ListsRepository
   private allLists(boardId: string): BoardList[]
   {
     return [...this.lists.values()].filter((list) => list.boardId === boardId);
+  }
+}
+
+export function assertExpectedListOrder(currentIds: string[], expectedIds?: string[]): void {
+  if (expectedIds && (currentIds.length !== expectedIds.length || currentIds.some((id, index) => id !== expectedIds[index]))) {
+    throw conflict('Lists have changed since they were loaded', 'STALE_LIST_ORDER');
   }
 }
 

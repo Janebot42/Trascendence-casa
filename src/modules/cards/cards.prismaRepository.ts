@@ -3,11 +3,15 @@ import { randomToken } from '../../shared/crypto/randomToken.js';
 import type { CardsRepository } from './cards.repository.js';
 import type { Card, CreateCardInput, MoveCardInput, UpdateCardInput } from './cards.types.js';
 import type { Page, PaginationInput } from '../../shared/pagination.js';
+import type { ActivityMutation } from '../activity/activity.types.js';
+import { writeActivityEvent } from '../activity/activity.write.js';
+import { conflict } from '../../shared/errors/httpErrors.js';
 
 export class PrismaCardsRepository implements CardsRepository {
+  readonly supportsAtomicActivity = true;
   constructor(private readonly prisma: PrismaClient) {}
 
-  async create(input: CreateCardInput): Promise<Card> {
+  async create(input: CreateCardInput, activity?: ActivityMutation): Promise<Card> {
     return withPositionRetry(async () => this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
         select 1 as locked
@@ -32,6 +36,7 @@ export class PrismaCardsRepository implements CardsRepository {
           createdById: input.actorUserId
         }
       });
+      await writeActivityEvent(tx, activity, row.id);
       return mapCard(row);
     }));
   }
@@ -50,22 +55,36 @@ export class PrismaCardsRepository implements CardsRepository {
     return row ? mapCard(row) : null;
   }
 
-  async update(input: UpdateCardInput): Promise<Card> {
-    const row = await this.prisma.card.update({
-      where: { id: input.cardId },
+  async update(input: UpdateCardInput, activity?: ActivityMutation): Promise<Card> {
+    const row = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.card.updateMany({
+      where: { id: input.cardId, ...(input.expectedVersion === undefined ? {} : { version: input.expectedVersion }), archivedAt: null },
       data: {
         title: input.title?.trim(),
         description: input.description === undefined ? undefined : input.description?.trim() || null,
         dueDate: input.dueDate === undefined ? undefined : input.dueDate
         ,priority: input.priority,
-        completed: input.completed
+        completed: input.completed,
+        version: { increment: 1 }
       }
+      });
+      if (result.count === 0) throw conflict('Card has changed since it was loaded', 'STALE_CARD');
+      const updated = await tx.card.findUniqueOrThrow({ where: { id: input.cardId } });
+      await writeActivityEvent(tx, activity);
+      return updated;
     });
     return mapCard(row);
   }
 
-  async move(input: MoveCardInput): Promise<Card> {
+  async move(input: MoveCardInput, activity?: ActivityMutation): Promise<Card> {
     return withPositionRetry(async () => this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        select 1 as locked
+        from (select pg_advisory_xact_lock(hashtext(${`card-move:${input.cardId}`}))) acquired
+      `;
+      const current = await tx.card.findFirst({ where: { id: input.cardId, archivedAt: null } });
+      if (!current) throw new Error('Card not found');
+      if (input.expectedVersion !== undefined && current.version !== input.expectedVersion) throw conflict('Card has changed since it was loaded', 'STALE_CARD');
       await tx.$queryRaw`
         select 1 as locked
         from (select pg_advisory_xact_lock(hashtext(${`card-position:${input.targetListId}`}))) acquired
@@ -77,19 +96,26 @@ export class PrismaCardsRepository implements CardsRepository {
         orderBy: { position: 'desc' },
         select: { position: true }
       });
-      const row = await tx.card.update({
-        where: { id: input.cardId },
+      const result = await tx.card.updateMany({
+        where: { id: input.cardId, version: current.version, archivedAt: null },
         data: {
           listId: input.targetListId,
-          position: (last?.position ?? 0) + 1000
+          position: (last?.position ?? 0) + 1000,
+          version: { increment: 1 }
         }
       });
+      if (result.count === 0) throw conflict('Card has changed since it was loaded', 'STALE_CARD');
+      const row = await tx.card.findUniqueOrThrow({ where: { id: input.cardId } });
+      await writeActivityEvent(tx, activity);
       return mapCard(row);
     }));
   }
 
-  async archive(cardId: string): Promise<void> {
-    await this.prisma.card.update({ where: { id: cardId }, data: { archivedAt: new Date() } });
+  async archive(cardId: string, activity?: ActivityMutation): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.card.update({ where: { id: cardId }, data: { archivedAt: new Date() } });
+      await writeActivityEvent(tx, activity);
+    });
   }
 }
 
@@ -102,6 +128,7 @@ function mapCard(row: {
   dueDate: Date | null;
   priority: string;
   completed: boolean;
+  version: number;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;

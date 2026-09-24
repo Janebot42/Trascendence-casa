@@ -25,8 +25,9 @@ const organizationMemberParamsSchema = z.object({
   userId: z.string().min(1)
 });
 const organizationMemberSchema = z.object({ role: z.enum(['admin', 'member']) });
+const organizationOwnerSchema = z.object({ userId: z.string().min(1) });
 const organizationInvitationSchema = z.object({
-  username: z.string().trim().min(1).max(50),
+  email: z.string().trim().email().max(254),
   role: z.enum(['admin', 'member']).default('member')
 });
 
@@ -94,6 +95,31 @@ export async function registerOrganizationRoutes(
     return reply.code(204).send();
   });
 
+  typedApp.get('/organizations/:organizationId/members', {
+    preHandler: requireAuth(sessionsService), schema: { params: organizationParamsSchema }
+  }, async (request) => ({ members: await organizationsService.listOrganizationMembers(request.params.organizationId, request.currentUser!.id) }));
+
+  typedApp.delete('/organizations/:organizationId/members/me', {
+    preHandler: requireAuth(sessionsService), schema: { params: organizationParamsSchema }
+  }, async (request, reply) => {
+    await organizationsService.leaveOrganization(request.params.organizationId, request.currentUser!.id);
+    return reply.code(204).send();
+  });
+
+  typedApp.put('/organizations/:organizationId/owner', {
+    preHandler: requireAuth(sessionsService), schema: { params: organizationParamsSchema, body: organizationOwnerSchema }
+  }, async (request, reply) => {
+    await organizationsService.transferOwnership(request.params.organizationId, request.currentUser!.id, request.body.userId);
+    return reply.code(204).send();
+  });
+
+  typedApp.delete('/organizations/:organizationId/members/:userId', {
+    preHandler: requireAuth(sessionsService), schema: { params: organizationMemberParamsSchema }
+  }, async (request, reply) => {
+    await organizationsService.removeOrganizationMember(request.params.organizationId, request.currentUser!.id, request.params.userId);
+    return reply.code(204).send();
+  });
+
   typedApp.put('/organizations/:organizationId/members/:userId', {
     preHandler: requireAuth(sessionsService),
     schema: { params: organizationMemberParamsSchema, body: organizationMemberSchema }
@@ -113,7 +139,7 @@ export async function registerOrganizationRoutes(
     member: await organizationsService.inviteMember({
       organizationId: request.params.organizationId,
       actorUserId: request.currentUser!.id,
-      username: request.body.username,
+      email: request.body.email,
       role: request.body.role
     })
   }));

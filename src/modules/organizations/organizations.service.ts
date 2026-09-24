@@ -1,4 +1,4 @@
-import { forbidden, notFound } from '../../shared/errors/httpErrors.js';
+import { badRequest, forbidden, notFound } from '../../shared/errors/httpErrors.js';
 import {
   canManageOrganization,
   type OrganizationsRepository
@@ -64,6 +64,8 @@ export class OrganizationsService
     if (!canManageOrganization(actor.role))
       throw forbidden('Organization admin role required', 'ORGANIZATION_ADMIN_REQUIRED');
     const current = await this.organizationsRepository.findMember(input.organizationId, input.userId);
+    if (current?.role === 'admin' && actor.role !== 'owner')
+      throw forbidden('Only the organization owner can change an admin role', 'ORGANIZATION_OWNER_REQUIRED');
     if (current?.role === 'owner')
       throw forbidden('The organization owner role cannot be changed', 'ORGANIZATION_OWNER_IMMUTABLE');
     if (actor.role !== 'owner' && (input.role === 'admin' || current?.role === 'admin'))
@@ -73,10 +75,45 @@ export class OrganizationsService
     return this.organizationsRepository.upsertMember(input);
   }
 
+  async listOrganizationMembers(organizationId: string, actorUserId: string) {
+    await this.getOrganizationForUser(organizationId, actorUserId);
+    const members = await this.organizationsRepository.listMembers(organizationId);
+    return Promise.all(members.map(async (member) => {
+      const user = await this.usersService.findById(member.userId);
+      return { ...member, user: user ? { id: user.id, username: user.username, displayName: user.displayName } : null };
+    }));
+  }
+
+  async removeOrganizationMember(organizationId: string, actorUserId: string, userId: string): Promise<void> {
+    const actor = await this.getOrganizationForUser(organizationId, actorUserId);
+    if (!canManageOrganization(actor.role)) throw forbidden('Organization admin role required', 'ORGANIZATION_ADMIN_REQUIRED');
+    const target = await this.organizationsRepository.findMember(organizationId, userId);
+    if (!target) throw notFound('Organization member not found', 'ORGANIZATION_MEMBER_NOT_FOUND');
+    if (target.role === 'owner') throw forbidden('The organization owner cannot be removed', 'ORGANIZATION_OWNER_IMMUTABLE');
+    if (target.role === 'admin' && actor.role !== 'owner') throw forbidden('Only the organization owner can remove an admin', 'ORGANIZATION_OWNER_REQUIRED');
+    if (actorUserId === userId) throw forbidden('Use the leave organization action to remove yourself', 'USE_LEAVE_ACTION');
+    await this.organizationsRepository.removeMember(organizationId, userId);
+  }
+
+  async leaveOrganization(organizationId: string, userId: string): Promise<void> {
+    const member = await this.organizationsRepository.findMember(organizationId, userId);
+    if (!member) throw notFound('Organization membership not found', 'ORGANIZATION_MEMBER_NOT_FOUND');
+    if (member.role === 'owner') throw forbidden('Transfer ownership before leaving the organization', 'ORGANIZATION_OWNER_TRANSFER_REQUIRED');
+    await this.organizationsRepository.removeMember(organizationId, userId);
+  }
+
+  async transferOwnership(organizationId: string, actorUserId: string, newOwnerId: string): Promise<void> {
+    const actor = await this.getOrganizationForUser(organizationId, actorUserId);
+    if (actor.role !== 'owner') throw forbidden('Only the organization owner can transfer ownership', 'ORGANIZATION_OWNER_REQUIRED');
+    const target = await this.organizationsRepository.findMember(organizationId, newOwnerId);
+    if (!target || target.role !== 'admin') throw badRequest('Ownership can only be transferred to an organization admin', 'ORGANIZATION_ADMIN_REQUIRED');
+    await this.organizationsRepository.transferOwnership(organizationId, actorUserId, newOwnerId);
+  }
+
   async inviteMember(input: {
     organizationId: string;
     actorUserId: string;
-    username: string;
+    email: string;
     role: Exclude<OrganizationRole, 'owner'>;
   }): Promise<OrganizationMember>
   {
@@ -86,7 +123,7 @@ export class OrganizationsService
     if (actor.role !== 'owner' && input.role === 'admin')
       throw forbidden('Only an organization owner can invite admins', 'ORGANIZATION_OWNER_REQUIRED');
 
-    const user = await this.usersService.findByUsername(input.username);
+    const user = await this.usersService.findByEmail(input.email);
     if (!user)
       throw notFound('No user exists with that email', 'INVITED_USER_NOT_FOUND');
     if (user.id === input.actorUserId)

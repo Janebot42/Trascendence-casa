@@ -9,7 +9,7 @@ import { useAuth } from './useAuth';
 
 /**
  * Página principal de login.
- * Flujo único: username y contraseña.
+ * Flujo único: email y contraseña.
  */
 export default function LoginPage() {
   const { login, completeTwoFactorLogin, twoFactorChallenge, isLoading, error } = useAuth();
@@ -19,12 +19,12 @@ export default function LoginPage() {
   const [twoFactorError, setTwoFactorError] = React.useState<string | null>(null);
 
   /**
-   * Login username/password.
+   * Login email/password.
    */
   const handleEmailLogin = useCallback(async (credentials: LoginCredentials) => {
     try {
-      await login(credentials.username, credentials.password);
-      router.push('/');
+      const result = await login(credentials.email, credentials.password);
+      if (result === 'authenticated') router.push('/');
     } catch {
       // El hook conserva el error para mostrarlo en el formulario.
     }
@@ -60,8 +60,7 @@ export default function LoginPage() {
               Inicia sesión para continuar.
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-on-surface-variant md:text-lg">
-              Estamos dejando esta pantalla lista para crecer, pero por ahora solo
-              usamos username y contraseña para mantener el flujo claro.
+              Accede a tu espacio de trabajo con tu email y contraseña.
             </p>
           </div>
         </section>
@@ -71,7 +70,7 @@ export default function LoginPage() {
             <div className="mb-6 text-center">
               <h2 className="text-2xl font-semibold text-on-surface">Login</h2>
               <p className="mt-2 text-sm text-on-surface-variant">
-                Usa tu usuario y contraseña para entrar al tablero.
+                Usa tu email y contraseña para entrar al tablero.
               </p>
             </div>
 

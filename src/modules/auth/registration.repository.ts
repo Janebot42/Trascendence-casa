@@ -7,7 +7,7 @@ import type { AuthRepository } from './auth.repository.js';
 
 export type RegistrationInput = {
   username: string;
-  email?: string | null;
+  email: string;
   passwordHash: string;
   passwordUpdatedAt: Date;
 };

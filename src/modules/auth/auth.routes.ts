@@ -11,12 +11,12 @@ import type { LoginResult } from './auth.types.js';
 
 const registerSchema = z.object({
   username: z.string().min(3).max(32),
-  email: z.string().email().max(254).optional(),
+  email: z.string().trim().email().max(254),
   password: z.string().min(12).max(128)
 });
 
 const loginSchema = z.object({
-  username: z.string().min(3).max(32),
+  email: z.string().trim().email().max(254),
   password: z.string().min(1).max(128)
 });
 

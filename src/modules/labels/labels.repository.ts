@@ -1,14 +1,15 @@
 import type { Label, CreateLabelInput, UpdateLabelInput } from './labels.types.js';
+import type { ActivityMutation } from '../activity/activity.types.js';
 
 export interface LabelsRepository {
-  create(input: CreateLabelInput): Promise<Label>;
+  create(input: CreateLabelInput, activity?: ActivityMutation): Promise<Label>;
   listForBoard(boardId: string): Promise<Label[]>;
   findById(labelId: string): Promise<Label | null>;
-  update(input: UpdateLabelInput): Promise<Label>;
-  delete(labelId: string): Promise<void>;
+  update(input: UpdateLabelInput, activity?: ActivityMutation): Promise<Label>;
+  delete(labelId: string, activity?: ActivityMutation): Promise<void>;
   listForCard(cardId: string): Promise<Label[]>;
-  attachToCard(cardId: string, labelId: string): Promise<void>;
-  detachFromCard(cardId: string, labelId: string): Promise<void>;
+  attachToCard(cardId: string, labelId: string, activity?: ActivityMutation): Promise<void>;
+  detachFromCard(cardId: string, labelId: string, activity?: ActivityMutation): Promise<void>;
 }
 
 export class InMemoryLabelsRepository implements LabelsRepository {

@@ -18,7 +18,7 @@ export default function EmailLoginForm({
   isLoading = false,
   error,
 }: UsernameLoginFormProps) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -29,8 +29,8 @@ export default function EmailLoginForm({
       setLocalError(null);
 
       // Validación básica
-      if (!username.trim()) {
-        setLocalError('Username is required');
+      if (!email.trim()) {
+        setLocalError('El email es obligatorio');
         return;
       }
 
@@ -40,29 +40,31 @@ export default function EmailLoginForm({
       }
 
       try {
-        await onSubmit({ username: username.trim(), password });
+        await onSubmit({ email: email.trim(), password });
       } catch (err) {
         setLocalError(err instanceof Error ? err.message : 'Login failed');
       }
     },
-    [username, password, onSubmit]
+    [email, password, onSubmit]
   );
 
   const displayError = error || localError;
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-4">
-      {/* Campo de usuario */}
+      {/* Campo de email */}
       <div className="space-y-2">
-        <label htmlFor="username" className="text-sm font-medium text-on-surface">
-          Usuario
+        <label htmlFor="email" className="text-sm font-medium text-on-surface">
+          Email
         </label>
         <input
-          id="username"
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="tu_usuario"
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="tu@email.com"
+          required
+          autoComplete="email"
           disabled={isLoading}
           className="w-full rounded-xl border border-outline-variant bg-surface-bright px-4 py-3 text-on-surface placeholder-on-surface-variant transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
         />

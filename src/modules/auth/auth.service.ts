@@ -31,7 +31,7 @@ export class AuthService
 
   async register(input: {
     username: string;
-    email?: string | null;
+    email: string;
     password: string;
     ipAddress?: string | null;
     userAgent?: string | null;
@@ -44,7 +44,7 @@ export class AuthService
     const passwordHash = await this.passwordHasher.hash(input.password);
     const user = await this.registrationRepository.createUserWithCredential({
       username: input.username,
-      email: input.email ?? null,
+      email: input.email,
       passwordHash,
       passwordUpdatedAt: new Date()
     });
@@ -64,17 +64,17 @@ export class AuthService
   }
 
   async login(input: {
-    username: string;
+    email: string;
     password: string;
     ipAddress?: string | null;
     userAgent?: string | null;
   }): Promise<LoginResult> {
-    const identityKey = rateLimitKey('login-identity', input.ipAddress, input.username.trim().toLowerCase());
+    const identityKey = rateLimitKey('login-identity', input.ipAddress, input.email.trim().toLowerCase());
     const ipKey = rateLimitKey('login-ip', input.ipAddress);
     this.passwordIdentityLimiter.assertAllowed(identityKey);
     this.passwordIpLimiter.assertAllowed(ipKey);
 
-    const user = await this.usersService.findByUsername(input.username);
+    const user = await this.usersService.findByEmail(input.email);
     if (!user || user.status !== 'active')
     {
       this.passwordIdentityLimiter.recordFailure(identityKey);

@@ -10,6 +10,7 @@ import type {
   UpdateOrganizationInput
 } from './organizations.types.js';
 import { paginateArray, type Page, type PaginationInput } from '../../shared/pagination.js';
+import type { BoardsRepository } from '../boards/boards.repository.js';
 
 export interface OrganizationsRepository 
 {
@@ -18,6 +19,9 @@ export interface OrganizationsRepository
   findForUser(organizationId: string, userId: string): Promise<OrganizationWithRole | null>;
   findMember(organizationId: string, userId: string): Promise<OrganizationMember | null>;
   upsertMember(input: SetOrganizationMemberInput): Promise<OrganizationMember>;
+  listMembers(organizationId: string): Promise<OrganizationMember[]>;
+  removeMember(organizationId: string, userId: string): Promise<void>;
+  transferOwnership(organizationId: string, currentOwnerId: string, newOwnerId: string): Promise<void>;
   update(input: UpdateOrganizationInput): Promise<Organization>;
   archive(organizationId: string): Promise<void>;
 }
@@ -26,6 +30,8 @@ export class InMemoryOrganizationsRepository implements OrganizationsRepository
 {
   private readonly organizations = new Map<string, Organization>();
   private readonly members = new Map<string, OrganizationMember>();
+
+  constructor(private readonly boardsRepository?: BoardsRepository) {}
 
   async createWithOwner(input: CreateOrganizationInput): Promise<OrganizationWithRole> 
   {
@@ -98,6 +104,23 @@ export class InMemoryOrganizationsRepository implements OrganizationsRepository
     };
     this.members.set(key, member);
     return member;
+  }
+
+  async listMembers(organizationId: string): Promise<OrganizationMember[]> {
+    return [...this.members.values()].filter((member) => member.organizationId === organizationId);
+  }
+
+  async removeMember(organizationId: string, userId: string): Promise<void> {
+    await this.boardsRepository?.removeUserFromOrganization(organizationId, userId);
+    this.members.delete(memberKey(organizationId, userId));
+  }
+
+  async transferOwnership(organizationId: string, currentOwnerId: string, newOwnerId: string): Promise<void> {
+    const currentOwner = this.members.get(memberKey(organizationId, currentOwnerId));
+    const newOwner = this.members.get(memberKey(organizationId, newOwnerId));
+    if (!currentOwner || !newOwner) throw new Error('Organization membership not found');
+    currentOwner.role = 'admin';
+    newOwner.role = 'owner';
   }
 
   async update(input: UpdateOrganizationInput): Promise<Organization> 

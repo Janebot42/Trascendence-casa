@@ -4,6 +4,7 @@ export type Page<T> = { items: T[]; limit: number; offset: number; total: number
 
 export type Organization = { id: string; name: string; slug: string; role: 'owner' | 'admin' | 'member' };
 export type Board = { id: string; organizationId: string; name: string; description: string | null; visibility: 'WORKSPACE' | 'PRIVATE' };
+export type WorkspaceMember = { organizationId?: string; boardId?: string; userId: string; role: string; user: { id: string; username: string; displayName: string | null } | null };
 export type BoardList = { id: string; boardId: string; name: string; position: number };
 export type Card = {
   id: string;
@@ -14,6 +15,7 @@ export type Card = {
   priority: 'Low' | 'Medium' | 'Urgent' | 'Enhancement';
   completed: boolean;
   position: number;
+  version: number;
 };
 export type Label = { id: string; boardId: string; name: string; color: string };
 
@@ -50,11 +52,33 @@ export async function createBoard(organizationId: string, input: { name: string;
   })).board;
 }
 
-export async function inviteOrganizationMember(organizationId: string, input: { username: string; role: 'admin' | 'member' }) {
+export async function inviteOrganizationMember(organizationId: string, input: { email: string; role: 'admin' | 'member' }) {
   return (await api<{ member: { organizationId: string; userId: string; role: 'admin' | 'member'; joinedAt: string } }>(`/organizations/${organizationId}/invitations`, {
     method: 'POST',
     body: JSON.stringify(input),
   })).member;
+}
+
+export async function listOrganizationMembers(organizationId: string) {
+  return (await api<{ members: WorkspaceMember[] }>(`/organizations/${organizationId}/members`)).members;
+}
+export async function removeOrganizationMember(organizationId: string, userId: string) {
+  await api(`/organizations/${organizationId}/members/${userId}`, { method: 'DELETE' });
+}
+export async function leaveOrganization(organizationId: string) {
+  await api(`/organizations/${organizationId}/members/me`, { method: 'DELETE' });
+}
+export async function transferOrganizationOwnership(organizationId: string, userId: string) {
+  await api(`/organizations/${organizationId}/owner`, { method: 'PUT', body: JSON.stringify({ userId }) });
+}
+export async function listBoardMembers(boardId: string) {
+  return api<{ members: WorkspaceMember[]; canManageMembers: boolean }>(`/boards/${boardId}/members`);
+}
+export async function removeBoardMember(boardId: string, userId: string) {
+  await api(`/boards/${boardId}/members/${userId}`, { method: 'DELETE' });
+}
+export async function leaveBoard(boardId: string) {
+  await api(`/boards/${boardId}/members/me`, { method: 'DELETE' });
 }
 
 export async function updateBoard(boardId: string, input: { name?: string; description?: string | null }) {
@@ -115,8 +139,8 @@ export async function archiveList(listId: string) {
   await api(`/lists/${listId}`, { method: 'DELETE' });
 }
 
-export async function reorderLists(boardId: string, listIds: string[]) {
-  return (await api<{ lists: BoardList[] }>(`/boards/${boardId}/lists/reorder`, { method: 'POST', body: JSON.stringify({ listIds }) })).lists;
+export async function reorderLists(boardId: string, listIds: string[], expectedListIds: string[]) {
+  return (await api<{ lists: BoardList[] }>(`/boards/${boardId}/lists/reorder`, { method: 'POST', body: JSON.stringify({ listIds, expectedListIds }) })).lists;
 }
 
 export async function createCard(listId: string, input: { title: string; description?: string | null; dueDate?: string | null; priority?: Card['priority']; completed?: boolean }) {
@@ -126,17 +150,17 @@ export async function createCard(listId: string, input: { title: string; descrip
   })).card;
 }
 
-export async function updateCard(cardId: string, input: { title?: string; description?: string | null; dueDate?: string | null; priority?: Card['priority']; completed?: boolean }) {
+export async function updateCard(cardId: string, input: { title?: string; description?: string | null; dueDate?: string | null; priority?: Card['priority']; completed?: boolean; expectedVersion: number }) {
   return (await api<{ card: Card }>(`/cards/${cardId}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   })).card;
 }
 
-export async function moveCard(cardId: string, targetListId: string) {
+export async function moveCard(cardId: string, targetListId: string, expectedVersion: number) {
   return (await api<{ card: Card }>(`/cards/${cardId}/move`, {
     method: 'POST',
-    body: JSON.stringify({ targetListId }),
+    body: JSON.stringify({ targetListId, expectedVersion }),
   })).card;
 }
 

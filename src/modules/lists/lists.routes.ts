@@ -16,7 +16,8 @@ const updateListSchema = z.object({
 });
 
 const reorderListsSchema = z.object({
-  listIds: z.array(z.string().min(1)).min(1)
+  listIds: z.array(z.string().min(1)).min(1),
+  expectedListIds: z.array(z.string().min(1)).min(1)
 });
 
 const boardParamsSchema = z.object({ boardId: z.string().min(1) });
@@ -84,7 +85,8 @@ export async function registerListRoutes(
     const lists = await listsService.reorderLists({
       boardId: params.boardId,
       actorUserId: request.currentUser!.id,
-      listIds: body.listIds
+      listIds: body.listIds,
+      expectedListIds: body.expectedListIds
     });
     return { lists };
   });

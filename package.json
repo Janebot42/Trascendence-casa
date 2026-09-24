@@ -11,6 +11,8 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
+    "test:permissions": "npm run build:backend && node --test test/permissions.memory.test.mjs",
+    "test:permissions:db": "node test/assert-local-database.mjs && npm run build:backend && prisma migrate deploy && node --test test/permissions.database.test.mjs && node --test test/permissions.http.test.mjs",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:status": "prisma migrate status",

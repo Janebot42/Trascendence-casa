@@ -32,6 +32,7 @@ export interface TaskItem {
   assignees?: User[];
   labels?: TaskLabel[];
   completed?: boolean;
+  version?: number;
   hasWireframePreview?: boolean;
 }
 

@@ -85,6 +85,24 @@ export async function registerBoardRoutes(
     return { ok: true };
   });
 
+  typedApp.get('/boards/:boardId/members', {
+    preHandler: requireAuth(sessionsService), schema: { params: boardParamsSchema }
+  }, async (request) => boardsService.listBoardMembers(request.params.boardId, request.currentUser!.id));
+
+  typedApp.delete('/boards/:boardId/members/me', {
+    preHandler: requireAuth(sessionsService), schema: { params: boardParamsSchema }
+  }, async (request, reply) => {
+    await boardsService.leaveBoard(request.params.boardId, request.currentUser!.id);
+    return reply.code(204).send();
+  });
+
+  typedApp.delete('/boards/:boardId/members/:userId', {
+    preHandler: requireAuth(sessionsService), schema: { params: boardMemberParamsSchema }
+  }, async (request, reply) => {
+    await boardsService.removeBoardMember(request.params.boardId, request.currentUser!.id, request.params.userId);
+    return reply.code(204).send();
+  });
+
   typedApp.put('/boards/:boardId/members/:userId', {
     preHandler: requireAuth(sessionsService),
     schema: { params: boardMemberParamsSchema, body: boardMemberSchema }

@@ -1,14 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 import { randomToken } from '../../shared/crypto/randomToken.js';
-import { assertSameListSet, type ListsRepository } from './lists.repository.js';
+import { assertExpectedListOrder, assertSameListSet, type ListsRepository } from './lists.repository.js';
 import type { BoardList, CreateListInput, ReorderListsInput, UpdateListInput } from './lists.types.js';
 import type { Page, PaginationInput } from '../../shared/pagination.js';
+import type { ActivityMutation } from '../activity/activity.types.js';
+import { writeActivityEvent } from '../activity/activity.write.js';
 
 export class PrismaListsRepository implements ListsRepository 
 {
+  readonly supportsAtomicActivity = true;
   constructor(private readonly prisma: PrismaClient) {}
 
-  async create(input: CreateListInput): Promise<BoardList> 
+  async create(input: CreateListInput, activity?: ActivityMutation): Promise<BoardList>
   {
     return withPositionRetry(async () => this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
@@ -18,6 +21,7 @@ export class PrismaListsRepository implements ListsRepository
       // La restricción única también incluye listas archivadas.
       const last = await tx.boardList.findFirst({ where: { boardId: input.boardId }, orderBy: { position: 'desc' }, select: { position: true } });
       const row = await tx.boardList.create({ data: { id: randomToken(16), boardId: input.boardId, name: input.name.trim(), position: (last?.position ?? 0) + 1000 } });
+      await writeActivityEvent(tx, activity, row.id);
       return mapList(row);
     }));
   }
@@ -38,13 +42,17 @@ export class PrismaListsRepository implements ListsRepository
     return row ? mapList(row) : null;
   }
 
-  async update(input: UpdateListInput): Promise<BoardList> 
+  async update(input: UpdateListInput, activity?: ActivityMutation): Promise<BoardList>
   {
-    const row = await this.prisma.boardList.update({ where: { id: input.listId }, data: { name: input.name?.trim() } });
+    const row = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.boardList.update({ where: { id: input.listId }, data: { name: input.name?.trim() } });
+      await writeActivityEvent(tx, activity);
+      return updated;
+    });
     return mapList(row);
   }
 
-  async reorder(input: ReorderListsInput): Promise<BoardList[]> 
+  async reorder(input: ReorderListsInput, activity?: ActivityMutation): Promise<BoardList[]>
   {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
@@ -52,17 +60,22 @@ export class PrismaListsRepository implements ListsRepository
         from (select pg_advisory_xact_lock(hashtext(${`list-position:${input.boardId}`}))) acquired
       `;
       const current = await tx.boardList.findMany({ where: { boardId: input.boardId, archivedAt: null }, orderBy: { position: 'asc' } });
+      assertExpectedListOrder(current.map((list) => list.id), input.expectedListIds);
       assertSameListSet(current.map((list) => list.id), input.listIds);
       // First use negative positions to avoid collisions with the unique key.
       for (const [index, id] of input.listIds.entries()) await tx.boardList.update({ where: { id }, data: { position: -(index + 1) } });
       for (const [index, id] of input.listIds.entries()) await tx.boardList.update({ where: { id }, data: { position: (index + 1) * 1000 } });
       const reordered = await tx.boardList.findMany({ where: { boardId: input.boardId, archivedAt: null }, orderBy: { position: 'asc' } });
+      await writeActivityEvent(tx, activity);
       return reordered.map(mapList);
     });
   }
 
-  async archive(listId: string): Promise<void> {
-    await this.prisma.boardList.update({ where: { id: listId }, data: { archivedAt: new Date() } });
+  async archive(listId: string, activity?: ActivityMutation): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.boardList.update({ where: { id: listId }, data: { archivedAt: new Date() } });
+      await writeActivityEvent(tx, activity);
+    });
   }
 }
 

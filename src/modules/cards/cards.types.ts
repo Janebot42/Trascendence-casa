@@ -9,6 +9,7 @@ export type Card = {
   dueDate: Date | null;
   priority: CardPriority;
   completed: boolean;
+  version: number;
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -33,12 +34,14 @@ export type UpdateCardInput = {
   dueDate?: Date | null;
   priority?: CardPriority;
   completed?: boolean;
+  expectedVersion?: number;
 };
 
 export type MoveCardInput = {
   cardId: string;
   actorUserId: string;
   targetListId: string;
+  expectedVersion?: number;
 };
 
 export type ArchiveCardInput = {

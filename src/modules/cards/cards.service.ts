@@ -3,16 +3,21 @@ import type { ListsService } from '../lists/lists.service.js';
 import type { CardsRepository } from './cards.repository.js';
 import type { ArchiveCardInput, Card, CreateCardInput, MoveCardInput, UpdateCardInput } from './cards.types.js';
 import { defaultPagination, type Page, type PaginationInput } from '../../shared/pagination.js';
+import { recordActivityIfNotAtomic, type ActivityRepository } from '../activity/activity.repository.js';
 
 export class CardsService {
   constructor(
     private readonly cardsRepository: CardsRepository,
-    private readonly listsService: ListsService
+    private readonly listsService: ListsService,
+    private readonly activityRepository?: ActivityRepository
   ) {}
 
   async createCard(input: CreateCardInput): Promise<Card> {
-    await this.listsService.getListForUser(input.listId, input.actorUserId, 'write');
-    return this.cardsRepository.create(input);
+    const list = await this.listsService.getListForUser(input.listId, input.actorUserId, 'write');
+    const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'card' as const, action: 'card.created' as const };
+    const card = await this.cardsRepository.create(input, event);
+    await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, { ...event, entityId: card.id });
+    return card;
   }
 
   async listListCards(listId: string, actorUserId: string, pagination: PaginationInput = defaultPagination): Promise<Page<Card>> {
@@ -29,17 +34,27 @@ export class CardsService {
 
   async updateCard(input: UpdateCardInput): Promise<Card> {
     const card = await this.getCardForUser(input.cardId, input.actorUserId, 'write');
-    return this.cardsRepository.update({ ...input, cardId: card.id });
+    const list = await this.listsService.getListForUser(card.listId, input.actorUserId);
+    const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'card' as const, entityId: card.id, action: 'card.updated' as const };
+    const updated = await this.cardsRepository.update({ ...input, cardId: card.id }, event);
+    await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, event);
+    return updated;
   }
 
   async moveCard(input: MoveCardInput): Promise<Card> {
     const card = await this.getCardForUser(input.cardId, input.actorUserId, 'write');
-    await this.listsService.getListForUser(input.targetListId, input.actorUserId, 'write');
-    return this.cardsRepository.move({ ...input, cardId: card.id });
+    const targetList = await this.listsService.getListForUser(input.targetListId, input.actorUserId, 'write');
+    const event = { boardId: targetList.boardId, actorId: input.actorUserId, entityType: 'card' as const, entityId: card.id, action: 'card.moved' as const };
+    const moved = await this.cardsRepository.move({ ...input, cardId: card.id }, event);
+    await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, event);
+    return moved;
   }
 
   async archiveCard(input: ArchiveCardInput): Promise<void> {
     const card = await this.getCardForUser(input.cardId, input.actorUserId, 'write');
-    await this.cardsRepository.archive(card.id);
+    const list = await this.listsService.getListForUser(card.listId, input.actorUserId);
+    const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'card' as const, entityId: card.id, action: 'card.archived' as const };
+    await this.cardsRepository.archive(card.id, event);
+    await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, event);
   }
 }

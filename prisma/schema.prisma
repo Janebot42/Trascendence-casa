@@ -28,6 +28,7 @@ model User {
   createdCards         Card[]               @relation("CardCreator")
   assignedCards        CardAssignee[]
   comments             Comment[]
+  activityEvents       ActivityEvent[]
 
   @@map("users") // le indica a Prisma que traduzca el modelo a la tabla fisica en la base de datos de PostgreSQL usando minusculas y snake_case, llamndola users
 }
@@ -151,6 +152,7 @@ model Board {
   lists           BoardList[]
   members         BoardMember[]
   labels          Label[]
+  activityEvents  ActivityEvent[]
 
   @@index([organizationId])
   @@map("boards")
@@ -195,6 +197,7 @@ model Card {
   dueDate     DateTime? @map("due_date")
   priority    String    @default("Medium")
   completed   Boolean   @default(false)
+  version     Int       @default(1)
   createdById String    @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -266,4 +269,20 @@ model CardLabel {
   @@id([cardId, labelId])
   @@index([labelId])
   @@map("card_labels")
+}
+
+model ActivityEvent {
+  id         String   @id
+  boardId    String   @map("board_id")
+  actorId    String   @map("actor_id")
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  action     String
+  createdAt  DateTime @default(now()) @map("created_at")
+  board      Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, createdAt, id])
+  @@index([actorId])
+  @@map("activity_events")
 }
