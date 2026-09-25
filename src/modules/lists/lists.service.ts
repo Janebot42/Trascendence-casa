@@ -4,13 +4,15 @@ import type { ListsRepository } from './lists.repository.js';
 import type { BoardList, CreateListInput, ReorderListsInput, UpdateListInput } from './lists.types.js';
 import { defaultPagination, type Page, type PaginationInput } from '../../shared/pagination.js';
 import { recordActivityIfNotAtomic, type ActivityRepository } from '../activity/activity.repository.js';
+import type { RealtimeService } from '../realtime/realtime.service.js';
 
 export class ListsService 
 {
   constructor(
     private readonly listsRepository: ListsRepository,
     private readonly boardsService: BoardsService,
-    private readonly activityRepository?: ActivityRepository
+    private readonly activityRepository?: ActivityRepository,
+    private readonly realtimeService?: RealtimeService
   ) {}
 
   async createList(input: CreateListInput): Promise<BoardList> 
@@ -19,6 +21,7 @@ export class ListsService
     const event = { boardId: input.boardId, actorId: input.actorUserId, entityType: 'list' as const, action: 'list.created' as const };
     const list = await this.listsRepository.create(input, event);
     await recordActivityIfNotAtomic(this.listsRepository, this.activityRepository, { ...event, entityId: list.id });
+    this.realtimeService?.publish({ type: 'list.created', boardId: list.boardId, actorUserId: input.actorUserId, entityId: list.id, data: { list } });
     return list;
   }
 
@@ -42,6 +45,7 @@ export class ListsService
     const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'list' as const, entityId: list.id, action: 'list.updated' as const };
     const updated = await this.listsRepository.update({ ...input, listId: list.id }, event);
     await recordActivityIfNotAtomic(this.listsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'list.updated', boardId: list.boardId, actorUserId: input.actorUserId, entityId: list.id, data: { list: updated } });
     return updated;
   }
 
@@ -51,6 +55,7 @@ export class ListsService
     const event = { boardId: input.boardId, actorId: input.actorUserId, entityType: 'board' as const, entityId: input.boardId, action: 'list.reordered' as const };
     const lists = await this.listsRepository.reorder(input, event);
     await recordActivityIfNotAtomic(this.listsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'lists.reordered', boardId: input.boardId, actorUserId: input.actorUserId, data: { listIds: lists.map((list) => list.id) } });
     return lists;
   }
 
@@ -59,5 +64,6 @@ export class ListsService
     const event = { boardId: list.boardId, actorId: actorUserId, entityType: 'list' as const, entityId: list.id, action: 'list.archived' as const };
     await this.listsRepository.archive(list.id, event);
     await recordActivityIfNotAtomic(this.listsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'list.archived', boardId: list.boardId, actorUserId, entityId: list.id });
   }
 }

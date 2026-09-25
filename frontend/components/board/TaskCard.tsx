@@ -8,6 +8,10 @@ interface TaskCardProps {
   task: TaskItem;
   isDragging?: boolean;
   onClick?: () => void;
+  onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
+  onDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
 }
 
 function getBadgeClass(priority: TaskPriority) {
@@ -163,10 +167,15 @@ function TaskCardMeta({ task }: { task: TaskItem }) {
   );
 }
 
-export default function TaskCard({ task, isDragging, onClick }: TaskCardProps) {
+export default function TaskCard({ task, isDragging, onClick, onDragStart, onDragEnd, onDragOver, onDrop }: TaskCardProps) {
   return (
     <div
       onClick={onClick}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       className={`kanban-card ${task.completed ? 'bg-surface-container-lowest' : 'bg-surface-container'} ${
         isDragging || task.hasWireframePreview ? 'ring-2 ring-primary border-transparent' : ''
       }`}

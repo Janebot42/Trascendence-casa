@@ -11,13 +11,15 @@ interface ColumnHeaderProps {
   onMoveRight?: () => void;
   canMoveLeft?: boolean;
   canMoveRight?: boolean;
+  draggable?: boolean;
+  onPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
 }
 
 /**
  * Encabezado de la columna Kanban
  * Muestra el título y la cantidad de tareas
  */
-export default function ColumnHeader({ title, taskCount, onRename, onArchive, onMoveLeft, onMoveRight, canMoveLeft, canMoveRight }: ColumnHeaderProps) {
+export default function ColumnHeader({ title, taskCount, onRename, onArchive, onMoveLeft, onMoveRight, canMoveLeft, canMoveRight, draggable, onPointerDown }: ColumnHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(title);
 
@@ -33,6 +35,7 @@ export default function ColumnHeader({ title, taskCount, onRename, onArchive, on
 
   return (
     <div className="kanban-column-header group">
+      {draggable && <button type="button" onPointerDown={onPointerDown} onClick={(event) => event.preventDefault()} className="touch-none cursor-grab text-outline hover:text-on-surface active:cursor-grabbing" aria-label="Arrastrar lista" title="Arrastrar para cambiar de posición"><span className="material-symbols-outlined text-[18px]">drag_indicator</span></button>}
       <span className="min-w-0 truncate text-[16px] font-semibold text-on-surface">{title}</span>
       <span className="text-on-surface-variant text-xs font-semibold bg-surface-container-lowest px-2 py-0.5 rounded-full">{taskCount}</span>
       <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">

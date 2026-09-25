@@ -18,6 +18,12 @@ interface KanbanColumnProps {
   onMoveRight?: () => void;
   canMoveLeft?: boolean;
   canMoveRight?: boolean;
+  onMoveTask?: (taskId: string, targetListId: string, beforeCardId?: string, afterCardId?: string) => void;
+  onTaskDragStart?: (taskId: string) => void;
+  onTaskDragEnd?: () => void;
+  onTaskDrop?: (taskId: string, targetListId: string, beforeCardId?: string, afterCardId?: string) => void;
+  draggableList?: boolean;
+  onListPointerDown?: (listId: string, event: React.PointerEvent<HTMLButtonElement>) => void;
 }
 
 /**
@@ -34,6 +40,11 @@ export default function KanbanColumn({
   onMoveRight,
   canMoveLeft,
   canMoveRight,
+  onTaskDragStart,
+  onTaskDragEnd,
+  onTaskDrop,
+  draggableList,
+  onListPointerDown,
 }: KanbanColumnProps) {
   const {
     isAdding,
@@ -57,15 +68,23 @@ export default function KanbanColumn({
   const isDoneColumn = column.id === 'col-done';
 
   return (
-    <div className={`kanban-column ${isDoneColumn ? 'opacity-80' : ''}`}>
-      <ColumnHeader title={column.title} taskCount={column.tasks.length} onRename={(name) => onRenameList?.(column.id, name)} onArchive={() => onArchiveList?.(column.id)} onMoveLeft={onMoveLeft} onMoveRight={onMoveRight} canMoveLeft={canMoveLeft} canMoveRight={canMoveRight} />
+    <div data-list-drop={column.id} className={`kanban-column ${isDoneColumn ? 'opacity-80' : ''}`}>
+      <ColumnHeader title={column.title} taskCount={column.tasks.length} onRename={(name) => onRenameList?.(column.id, name)} onArchive={() => onArchiveList?.(column.id)} onMoveLeft={onMoveLeft} onMoveRight={onMoveRight} canMoveLeft={canMoveLeft} canMoveRight={canMoveRight} draggable={draggableList} onPointerDown={(event) => onListPointerDown?.(column.id, event)} />
 
-      <div className="kanban-cards">
-        {column.tasks.map((task) => (
+      <div className="kanban-cards" onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+        event.preventDefault();
+        const taskId = event.dataTransfer.getData('text/card-id');
+        if (taskId) onTaskDrop?.(taskId, column.id);
+      }}>
+        {column.tasks.map((task, index) => (
           <TaskCard
             key={task.id}
             task={task}
             onClick={() => onTaskClick(task, column.id)}
+            onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData('text/card-id', task.id); event.dataTransfer.effectAllowed = 'move'; onTaskDragStart?.(task.id); }}
+            onDragEnd={onTaskDragEnd}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => { event.preventDefault(); event.stopPropagation(); const id = event.dataTransfer.getData('text/card-id'); if (id) onTaskDrop?.(id, column.id, task.id, column.tasks[index - 1]?.id); }}
           />
         ))}
       </div>

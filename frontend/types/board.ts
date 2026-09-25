@@ -33,6 +33,7 @@ export interface TaskItem {
   labels?: TaskLabel[];
   completed?: boolean;
   version?: number;
+  position?: number;
   hasWireframePreview?: boolean;
 }
 

@@ -17,7 +17,7 @@ const createCardSchema = z.object({
   completed: z.boolean().optional()
 });
 const updateCardSchema = createCardSchema.partial().extend({ expectedVersion: z.number().int().positive() });
-const moveCardSchema = z.object({ targetListId: z.string().min(1), expectedVersion: z.number().int().positive() });
+const moveCardSchema = z.object({ targetListId: z.string().min(1), beforeCardId: z.string().min(1).optional(), afterCardId: z.string().min(1).optional(), expectedVersion: z.number().int().positive() }).refine((value) => !value.beforeCardId || !value.afterCardId || value.beforeCardId !== value.afterCardId, 'Neighbor cards must be different');
 
 export async function registerCardRoutes(
   app: FastifyInstance,
@@ -72,6 +72,8 @@ export async function registerCardRoutes(
       cardId: request.params.cardId,
       actorUserId: request.currentUser!.id,
       targetListId: request.body.targetListId,
+      beforeCardId: request.body.beforeCardId,
+      afterCardId: request.body.afterCardId,
       expectedVersion: request.body.expectedVersion
     })
   }));

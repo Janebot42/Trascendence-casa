@@ -89,18 +89,34 @@ export class PrismaCardsRepository implements CardsRepository {
         select 1 as locked
         from (select pg_advisory_xact_lock(hashtext(${`card-position:${input.targetListId}`}))) acquired
       `;
-      const last = await tx.card.findFirst({
-        // La restricción única también incluye tarjetas archivadas. Debemos
-        // considerar sus posiciones para no reutilizarlas al mover una tarjeta.
-        where: { listId: input.targetListId, NOT: { id: input.cardId } },
-        orderBy: { position: 'desc' },
-        select: { position: true }
-      });
+      const targetCards = await tx.card.findMany({ where: { listId: input.targetListId, archivedAt: null, NOT: { id: input.cardId } }, orderBy: { position: 'asc' } });
+      const beforeIndex = input.beforeCardId ? targetCards.findIndex((item) => item.id === input.beforeCardId) : -1;
+      const afterIndex = input.afterCardId ? targetCards.findIndex((item) => item.id === input.afterCardId) : -1;
+      if ((input.beforeCardId && beforeIndex < 0) || (input.afterCardId && afterIndex < 0) || (beforeIndex >= 0 && afterIndex >= 0 && afterIndex + 1 !== beforeIndex)) throw conflict('Target position has changed', 'STALE_CARD_ORDER');
+      const insertAt = beforeIndex >= 0 ? beforeIndex : afterIndex >= 0 ? afterIndex + 1 : targetCards.length;
+      const previous = targetCards[insertAt - 1];
+      const next = targetCards[insertAt];
+      let position = previous && next ? Math.floor((previous.position + next.position) / 2) : previous ? previous.position + 1000 : next ? next.position - 1000 : 1000;
+      const occupied = await tx.card.findFirst({ where: { listId: input.targetListId, position, NOT: { id: input.cardId } }, select: { id: true } });
+      if ((previous && next && position <= previous.position) || occupied) {
+        // Temporarily use negative values to avoid collisions with the unique (listId, position) key.
+        for (const [index, item] of targetCards.entries()) await tx.card.update({ where: { id: item.id }, data: { position: -(index + 1) } });
+        for (const [index, item] of targetCards.entries()) await tx.card.update({ where: { id: item.id }, data: { position: (index + 1) * 1000 } });
+        const left = targetCards[insertAt - 1];
+        const right = targetCards[insertAt];
+        position = left && right ? left.position + 500 : left ? left.position + 1000 : right ? right.position - 1000 : 1000;
+        if (position <= 0) {
+          // There is no positive gap before the first row; shift the list upward in temporary space.
+          for (const [index, item] of targetCards.entries()) await tx.card.update({ where: { id: item.id }, data: { position: -(index + 1) } });
+          for (const [index, item] of targetCards.entries()) await tx.card.update({ where: { id: item.id }, data: { position: (index + 1) * 1000 } });
+          position = targetCards.length ? 500 : 1000;
+        }
+      }
       const result = await tx.card.updateMany({
         where: { id: input.cardId, version: current.version, archivedAt: null },
         data: {
           listId: input.targetListId,
-          position: (last?.position ?? 0) + 1000,
+          position,
           version: { increment: 1 }
         }
       });

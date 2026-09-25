@@ -157,10 +157,10 @@ export async function updateCard(cardId: string, input: { title?: string; descri
   })).card;
 }
 
-export async function moveCard(cardId: string, targetListId: string, expectedVersion: number) {
+export async function moveCard(cardId: string, targetListId: string, expectedVersion: number, beforeCardId?: string, afterCardId?: string) {
   return (await api<{ card: Card }>(`/cards/${cardId}/move`, {
     method: 'POST',
-    body: JSON.stringify({ targetListId, expectedVersion }),
+    body: JSON.stringify({ targetListId, expectedVersion, beforeCardId, afterCardId }),
   })).card;
 }
 

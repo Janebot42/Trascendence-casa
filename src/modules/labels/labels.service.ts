@@ -5,6 +5,7 @@ import type { ListsService } from '../lists/lists.service.js';
 import type { LabelsRepository } from './labels.repository.js';
 import type { CreateLabelInput, DeleteLabelInput, Label, UpdateLabelInput } from './labels.types.js';
 import { recordActivityIfNotAtomic, type ActivityRepository } from '../activity/activity.repository.js';
+import type { RealtimeService } from '../realtime/realtime.service.js';
 
 export class LabelsService {
   constructor(
@@ -12,7 +13,8 @@ export class LabelsService {
     private readonly boardsService: BoardsService,
     private readonly cardsService: CardsService,
     private readonly listsService: ListsService,
-    private readonly activityRepository?: ActivityRepository
+    private readonly activityRepository?: ActivityRepository,
+    private readonly realtimeService?: RealtimeService
   ) {}
 
   async createLabel(input: CreateLabelInput): Promise<Label> {
@@ -20,6 +22,7 @@ export class LabelsService {
     const event = { boardId: input.boardId, actorId: input.actorUserId, entityType: 'label' as const, action: 'label.created' as const };
     const label = await this.labelsRepository.create(input, event);
     await recordActivityIfNotAtomic(this.labelsRepository, this.activityRepository, { ...event, entityId: label.id });
+    this.realtimeService?.publish({ type: 'label.created', boardId: label.boardId, actorUserId: input.actorUserId, entityId: label.id, data: { label } });
     return label;
   }
 
@@ -33,6 +36,7 @@ export class LabelsService {
     const event = { boardId: label.boardId, actorId: input.actorUserId, entityType: 'label' as const, entityId: label.id, action: 'label.updated' as const };
     const updated = await this.labelsRepository.update({ ...input, labelId: label.id }, event);
     await recordActivityIfNotAtomic(this.labelsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'label.updated', boardId: label.boardId, actorUserId: input.actorUserId, entityId: label.id, data: { label: updated } });
     return updated;
   }
 
@@ -41,6 +45,7 @@ export class LabelsService {
     const event = { boardId: label.boardId, actorId: input.actorUserId, entityType: 'label' as const, entityId: label.id, action: 'label.deleted' as const };
     await this.labelsRepository.delete(label.id, event);
     await recordActivityIfNotAtomic(this.labelsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'label.deleted', boardId: label.boardId, actorUserId: input.actorUserId, entityId: label.id });
   }
 
   async listCardLabels(cardId: string, actorUserId: string): Promise<Label[]> {
@@ -56,6 +61,7 @@ export class LabelsService {
     const event = { boardId, actorId: actorUserId, entityType: 'card_label' as const, entityId: cardId, action: 'card_label.added' as const };
     await this.labelsRepository.attachToCard(cardId, labelId, event);
     await recordActivityIfNotAtomic(this.labelsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'card_label.added', boardId, actorUserId, entityId: cardId, data: { labelId } });
   }
 
   async detachLabelFromCard(cardId: string, labelId: string, actorUserId: string): Promise<void> {
@@ -65,6 +71,7 @@ export class LabelsService {
     const event = { boardId, actorId: actorUserId, entityType: 'card_label' as const, entityId: cardId, action: 'card_label.removed' as const };
     await this.labelsRepository.detachFromCard(cardId, labelId, event);
     await recordActivityIfNotAtomic(this.labelsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'card_label.removed', boardId, actorUserId, entityId: cardId, data: { labelId } });
   }
 
   private async resolveCardBoardId(cardId: string, actorUserId: string): Promise<string> {

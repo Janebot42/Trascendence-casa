@@ -66,10 +66,22 @@ export class InMemoryCardsRepository implements CardsRepository {
     const card = this.cards.get(input.cardId);
     if (!card || card.archivedAt) throw new Error('Card not found');
     if (input.expectedVersion !== undefined && card.version !== input.expectedVersion) throw conflict('Card has changed since it was loaded', 'STALE_CARD');
-    const targetCards = this.allCards(input.targetListId).filter((item) => item.id !== input.cardId);
+    const targetCards = this.allCards(input.targetListId).filter((item) => item.id !== input.cardId && !item.archivedAt).sort((a, b) => a.position - b.position);
+    const beforeIndex = input.beforeCardId ? targetCards.findIndex((item) => item.id === input.beforeCardId) : -1;
+    const afterIndex = input.afterCardId ? targetCards.findIndex((item) => item.id === input.afterCardId) : -1;
+    if ((input.beforeCardId && beforeIndex < 0) || (input.afterCardId && afterIndex < 0) || (beforeIndex >= 0 && afterIndex >= 0 && afterIndex + 1 !== beforeIndex)) throw conflict('Target position has changed', 'STALE_CARD_ORDER');
+    const insertAt = beforeIndex >= 0 ? beforeIndex : afterIndex >= 0 ? afterIndex + 1 : targetCards.length;
+    const previous = targetCards[insertAt - 1];
+    const next = targetCards[insertAt];
+    let position = previous && next ? Math.floor((previous.position + next.position) / 2) : previous ? previous.position + 1000 : next ? next.position - 1000 : 1000;
+    if (previous && next && position <= previous.position) {
+      targetCards.splice(insertAt, 0, card);
+      targetCards.forEach((item, index) => { item.position = (index + 1) * 1000; item.updatedAt = new Date(); });
+      position = card.position;
+    }
     card.listId = input.targetListId;
     card.version += 1;
-    card.position = targetCards.length ? Math.max(...targetCards.map((item) => item.position)) + 1000 : 1000;
+    card.position = position;
     card.updatedAt = new Date();
     return card;
   }

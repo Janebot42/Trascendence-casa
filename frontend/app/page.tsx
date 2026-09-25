@@ -8,6 +8,7 @@ import WorkspaceToolbar from '@/components/board/WorkspaceToolbar';
 import KanbanBoard from '@/components/board/kanbanBoard/KanbanBoard';
 import { ProtectedRoute } from '@/components/auth';
 import { useAuth } from '@/components/auth/useAuth';
+import { useBoardRealtime } from '@/lib/useBoardRealtime';
 import { BoardColumn, TaskItem } from '@/types/board';
 import {
   archiveCard,
@@ -56,6 +57,7 @@ function toTask(card: Awaited<ReturnType<typeof listCards>>[number], labels: Awa
     priority: card.priority,
     completed: card.completed,
     version: card.version,
+    position: card.position,
     dueDate: card.dueDate ?? undefined,
     labels,
   };
@@ -106,6 +108,7 @@ export default function Home() {
   const [isCreatingLabel, setIsCreatingLabel] = useState(false);
 
   const reload = useCallback(() => setRefreshKey((value) => value + 1), []);
+  useBoardRealtime(workspace?.board.id, currentUser?.id, reload);
 
   useEffect(() => {
     let active = true;
@@ -191,6 +194,14 @@ export default function Home() {
       ...(task.labels ?? []).filter((label) => !previousLabelIds.has(label.id)).map((label) => attachLabelToCard(task.id, label.id)),
       ...(sourceTask?.labels ?? []).filter((label) => !nextLabelIds.has(label.id)).map((label) => detachLabelFromCard(task.id, label.id)),
     ]);
+    reload();
+  };
+
+  const handleMoveTask = async (taskId: string, targetListId: string, beforeCardId?: string, afterCardId?: string) => {
+    const source = findTaskColumn(taskId);
+    const task = source?.tasks.find((candidate) => candidate.id === taskId);
+    if (!task) return;
+    await moveCard(taskId, targetListId, task.version ?? 1, beforeCardId, afterCardId);
     reload();
   };
 
@@ -479,6 +490,7 @@ export default function Home() {
             labels={labels}
             onCreateTask={async (columnId, title, priority) => handleCreateTask(columnId, title, priority)}
             onSaveTask={handleSaveTask}
+            onMoveTask={handleMoveTask}
             onDeleteTask={async (taskId) => handleDeleteTask(taskId)}
             onCreateList={handleCreateList}
             onRenameList={handleRenameList}

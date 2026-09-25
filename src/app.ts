@@ -56,6 +56,8 @@ import { InMemoryActivityRepository } from './modules/activity/activity.reposito
 import { PrismaActivityRepository } from './modules/activity/activity.prismaRepository.js';
 import { ActivityService } from './modules/activity/activity.service.js';
 import { registerActivityRoutes } from './modules/activity/activity.routes.js';
+import { RealtimeService } from './modules/realtime/realtime.service.js';
+import { registerRealtimeRoutes } from './modules/realtime/realtime.routes.js';
 
 export async function buildApp() 
 {
@@ -111,6 +113,7 @@ export async function buildApp()
   const labelsRepository = prisma ? new PrismaLabelsRepository(prisma) : new InMemoryLabelsRepository();
   const activityRepository = prisma ? new PrismaActivityRepository(prisma) : new InMemoryActivityRepository();
   const sessionsService = new SessionsService(sessionsRepository, usersService);
+  const realtimeService = new RealtimeService();
   const totpService = new TotpService(new SecretBox(securityConfig.totpEncryptionKeyBase64));
   const recoveryCodesService = new RecoveryCodesService(twoFactorRepository);
   const twoFactorService = new TwoFactorService(
@@ -129,9 +132,9 @@ export async function buildApp()
   );
   const organizationsService = new OrganizationsService(organizationsRepository, usersService);
   const boardsService = new BoardsService(boardsRepository, organizationsService, usersService, activityRepository);
-  const listsService = new ListsService(listsRepository, boardsService, activityRepository);
-  const cardsService = new CardsService(cardsRepository, listsService, activityRepository);
-  const labelsService = new LabelsService(labelsRepository, boardsService, cardsService, listsService, activityRepository);
+  const listsService = new ListsService(listsRepository, boardsService, activityRepository, realtimeService);
+  const cardsService = new CardsService(cardsRepository, listsService, activityRepository, realtimeService);
+  const labelsService = new LabelsService(labelsRepository, boardsService, cardsService, listsService, activityRepository, realtimeService);
   const activityService = new ActivityService(activityRepository, boardsService, usersService);
 
   if (env.NODE_ENV === 'test') 
@@ -165,6 +168,7 @@ export async function buildApp()
   });
 
   app.get('/health', async () => ({ ok: true }));
+  await registerRealtimeRoutes(app, realtimeService, sessionsService, boardsService);
   await registerAuthRoutes(app, authService, sessionsService);
   await registerOrganizationRoutes(app, organizationsService, sessionsService);
   await registerBoardRoutes(app, boardsService, sessionsService);

@@ -4,12 +4,14 @@ import type { CardsRepository } from './cards.repository.js';
 import type { ArchiveCardInput, Card, CreateCardInput, MoveCardInput, UpdateCardInput } from './cards.types.js';
 import { defaultPagination, type Page, type PaginationInput } from '../../shared/pagination.js';
 import { recordActivityIfNotAtomic, type ActivityRepository } from '../activity/activity.repository.js';
+import type { RealtimeService } from '../realtime/realtime.service.js';
 
 export class CardsService {
   constructor(
     private readonly cardsRepository: CardsRepository,
     private readonly listsService: ListsService,
-    private readonly activityRepository?: ActivityRepository
+    private readonly activityRepository?: ActivityRepository,
+    private readonly realtimeService?: RealtimeService
   ) {}
 
   async createCard(input: CreateCardInput): Promise<Card> {
@@ -17,6 +19,7 @@ export class CardsService {
     const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'card' as const, action: 'card.created' as const };
     const card = await this.cardsRepository.create(input, event);
     await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, { ...event, entityId: card.id });
+    this.realtimeService?.publish({ type: 'card.created', boardId: list.boardId, actorUserId: input.actorUserId, entityId: card.id, data: { card } });
     return card;
   }
 
@@ -38,6 +41,7 @@ export class CardsService {
     const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'card' as const, entityId: card.id, action: 'card.updated' as const };
     const updated = await this.cardsRepository.update({ ...input, cardId: card.id }, event);
     await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'card.updated', boardId: list.boardId, actorUserId: input.actorUserId, entityId: card.id, data: { card: updated } });
     return updated;
   }
 
@@ -47,6 +51,7 @@ export class CardsService {
     const event = { boardId: targetList.boardId, actorId: input.actorUserId, entityType: 'card' as const, entityId: card.id, action: 'card.moved' as const };
     const moved = await this.cardsRepository.move({ ...input, cardId: card.id }, event);
     await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'card.moved', boardId: targetList.boardId, actorUserId: input.actorUserId, entityId: card.id, data: { card: moved } });
     return moved;
   }
 
@@ -56,5 +61,6 @@ export class CardsService {
     const event = { boardId: list.boardId, actorId: input.actorUserId, entityType: 'card' as const, entityId: card.id, action: 'card.archived' as const };
     await this.cardsRepository.archive(card.id, event);
     await recordActivityIfNotAtomic(this.cardsRepository, this.activityRepository, event);
+    this.realtimeService?.publish({ type: 'card.archived', boardId: list.boardId, actorUserId: input.actorUserId, entityId: card.id });
   }
 }

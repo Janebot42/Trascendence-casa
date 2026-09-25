@@ -41,6 +41,8 @@ export type MoveCardInput = {
   cardId: string;
   actorUserId: string;
   targetListId: string;
+  beforeCardId?: string;
+  afterCardId?: string;
   expectedVersion?: number;
 };
 

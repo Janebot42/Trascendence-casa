@@ -32,6 +32,7 @@ The application is under active development. Features described as planned or da
 - Board membership roles: `admin`, `member`, and read-only `observer`.
 - List creation, listing, renaming, and full-board reordering.
 - Card creation, listing, retrieval, editing, movement between lists, and soft deletion.
+- Authenticated WebSocket updates for cards, lists, and labels in connected boards.
 - Offset-based pagination for users, organizations, boards, lists, and cards.
 - Request validation with Zod and typed Fastify routes.
 - PostgreSQL persistence through Prisma.
@@ -58,7 +59,6 @@ These entities do not yet have services, HTTP routes, or interface controls.
 - Organization, board, and list deletion or archival endpoints.
 - Member listing and member removal flows.
 - User profile editing, avatars, friends, and online presence.
-- Real-time updates or WebSockets.
 - Notifications.
 - Internationalization.
 - Prometheus/Grafana monitoring.
@@ -320,7 +320,11 @@ POST   /cards/:cardId/move
 DELETE /cards/:cardId
 ```
 
-Moving a card places it at the end of the destination list. Deleting a card performs a soft deletion.
+Cards can be moved to a specific position in the target list with optional `beforeCardId` and `afterCardId` anchors; the server assigns a numeric position and renumbers the list when no gap remains. List reordering must include every active list exactly once and the expected current order. Deleting a card performs a soft deletion.
+
+### Real-time updates
+
+The authenticated WebSocket endpoint is `GET /realtime?boardId=:boardId`. It uses the same session cookie as the HTTP API and closes unauthorized connections. Clients receive `card.*`, `list.*`, `lists.reordered`, `label.*`, and `card_label.*` JSON events only for boards they can read. The server keeps subscriptions in memory, so this fanout is intended for the single backend process used by this deployment.
 
 ### Pagination
 
@@ -377,7 +381,7 @@ This section records implementation status and does not claim final evaluation p
 | Standard user management (Major) | In progress; profiles, avatars, friends, and online status are missing |
 | Advanced permissions (Major) | In progress; domain roles exist, but full user CRUD and required role views do not |
 | Frontend framework | Implemented with Next.js |
-| Real-time features and collaboration | Not implemented |
+| Real-time features and collaboration | Single-process WebSocket updates implemented for board cards, lists, and labels; presence and conflict UI remain future work |
 | Accessibility WCAG 2.1 AA | Not verified or complete |
 | Internationalization | Not implemented |
 | Cybersecurity with WAF and Vault | Not implemented |
