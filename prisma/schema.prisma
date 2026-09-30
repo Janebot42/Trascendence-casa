@@ -184,7 +184,6 @@ model BoardList {
   cards      Card[]
 
   @@unique([boardId, position]) //Le dice a la base de datos que la combinacion de boardId y position debe ser unica.
-  @@index([boardId])
   @@map("board_lists")
 }
 
@@ -210,7 +209,6 @@ model Card {
   labels    CardLabel[]
 
   @@unique([listId, position])
-  @@index([listId])
   @@index([createdById])
   @@map("cards")
 }
@@ -255,7 +253,6 @@ model Label {
   cards CardLabel[]
 
   @@unique([boardId, name])
-  @@index([boardId])
   @@map("labels")
 }
 

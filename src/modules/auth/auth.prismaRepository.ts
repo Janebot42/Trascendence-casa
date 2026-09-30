@@ -59,6 +59,9 @@ export class PrismaAuthRepository implements AuthRepository
   }
 }
 
+//significa: Dame exactamente el tipo de objeto que sale de la base de datos cuando Prisma hace un findUnique y que el 
+//resultado sea tratado como un objeto, para que no haya problemas de tipos.
+//El parámetro row que entra a esta función tiene exactamente la estructura de datos que Prisma extrae de la base de datos
 function mapChallenge(row: Awaited<ReturnType<PrismaClient['loginChallenge']['findUnique']>> & object): LoginChallenge 
 {
   return {

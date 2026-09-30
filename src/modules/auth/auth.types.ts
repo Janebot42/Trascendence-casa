@@ -6,8 +6,7 @@ export type PasswordCredential = {
   passwordUpdatedAt: Date;
 };
 
-export type LoginResult =
-  | {
+export type LoginResult = {
       status: 'authenticated';
       user: User;
       sessionToken: string;

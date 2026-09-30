@@ -104,6 +104,8 @@ HTTP route -> service -> repository interface -> Prisma or in-memory repository
 
 Routes validate transport data and require authentication where appropriate. Services enforce permissions and business rules. Repositories handle storage.
 
+Para incorporarse al backend, consulta la [guía de estructura y funciones de `src/modules`](docs/estructura-modulos.md), que describe cada archivo y las excepciones al patrón común.
+
 ## Technical Stack
 
 | Area | Technology | Reason for use |
